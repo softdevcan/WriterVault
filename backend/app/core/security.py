@@ -137,6 +137,46 @@ def generate_secure_token(length: int = 32) -> str:
     return secrets.token_urlsafe(length)
 
 
+def generate_password_reset_token() -> str:
+    """
+    Generate a secure password reset token.
+    
+    Returns:
+        str: URL-safe password reset token
+    """
+    return secrets.token_urlsafe(32)
+
+
+def hash_password_reset_token(token: str) -> str:
+    """
+    Hash password reset token for secure storage.
+    
+    Args:
+        token: Plain text reset token
+        
+    Returns:
+        str: Hashed token for database storage
+    """
+    return pwd_context.hash(token)
+
+
+def verify_password_reset_token(token: str, hashed_token: str) -> bool:
+    """
+    Verify password reset token against stored hash.
+    
+    Args:
+        token: Plain text reset token
+        hashed_token: Stored hashed token
+        
+    Returns:
+        bool: True if token is valid, False otherwise
+    """
+    try:
+        return pwd_context.verify(token, hashed_token)
+    except Exception:
+        return False
+
+
 def is_password_strong(password: str) -> tuple[bool, list[str]]:
     """
     Check if password meets security requirements.

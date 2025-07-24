@@ -43,46 +43,52 @@ def setup_logging():
 
 
 def validate_environment():
-    """Validate required environment variables."""
+    """Validate required environment variables using comprehensive validator."""
     logger = logging.getLogger(__name__)
     
-    required_vars = [
-        "SECRET_KEY",
-    ]
-    
-    # Check for required environment variables
-    missing_vars = []
-    for var in required_vars:
-        if not os.getenv(var) or os.getenv(var) == "generate-with-openssl-rand-hex-32-change-in-production":
-            missing_vars.append(var)
-    
-    if missing_vars:
-        logger.error(f"🚨 Missing required environment variables: {', '.join(missing_vars)}")
-        if os.getenv("ENVIRONMENT") == "production":
-            logger.error("🚨 Cannot start in production without proper configuration!")
-            sys.exit(1)
-        else:
-            logger.warning("⚠️ Using default values for development. Set proper values for production!")
-    
-    # Validate numeric environment variables
-    numeric_vars = {
-        "PORT": (1, 65535),
-        "WORKERS": (1, 32),
-        "ACCESS_TOKEN_EXPIRE_MINUTES": (1, 1440),
-    }
-    
-    for var, (min_val, max_val) in numeric_vars.items():
-        value = os.getenv(var)
-        if value:
-            try:
-                num_value = int(value)
-                if not min_val <= num_value <= max_val:
-                    logger.warning(f"⚠️ {var}={num_value} is outside recommended range ({min_val}-{max_val})")
-            except ValueError:
-                logger.error(f"🚨 {var} must be a valid integer, got: {value}")
+    try:
+        # Import environment validator
+        from app.config.env_validator import env_validator
+        
+        # Run comprehensive validation
+        result = env_validator.validate_all()
+        
+        # Handle validation results
+        if not result["valid"]:
+            logger.error(f"🚨 Environment validation failed with {result['total_errors']} errors")
+            
+            # In production, exit on validation errors
+            if os.getenv("ENVIRONMENT") == "production":
+                logger.error("🚨 Cannot start in production with configuration errors!")
                 sys.exit(1)
-    
-    logger.info("✅ Environment validation passed")
+            else:
+                logger.warning("⚠️ Configuration errors found but continuing in development mode")
+        
+        # Show summary
+        if result["total_warnings"] > 0:
+            logger.warning(f"⚠️ Configuration completed with {result['total_warnings']} warnings")
+        else:
+            logger.info("✅ Environment configuration validation passed")
+            
+    except ImportError as e:
+        # Fallback to basic validation if validator import fails
+        logger.warning(f"⚠️ Could not import environment validator: {e}")
+        logger.warning("⚠️ Using basic validation...")
+        
+        # Basic fallback validation
+        required_vars = ["SECRET_KEY", "DATABASE_URL"]
+        missing_vars = []
+        
+        for var in required_vars:
+            if not os.getenv(var):
+                missing_vars.append(var)
+        
+        if missing_vars:
+            logger.error(f"🚨 Missing required environment variables: {', '.join(missing_vars)}")
+            if os.getenv("ENVIRONMENT") == "production":
+                sys.exit(1)
+        
+        logger.info("✅ Basic environment validation passed")
 
 
 def setup_signal_handlers():
@@ -101,25 +107,68 @@ def setup_signal_handlers():
 
 def get_config():
     """Get uvicorn configuration from environment variables."""
+    reload_mode = os.getenv("DEBUG", "false").lower() == "true"
+    
     config = {
-        "app": app,  # Use the imported app object directly
         "host": os.getenv("HOST", "0.0.0.0"),
         "port": int(os.getenv("PORT", "8000")),
-        "workers": int(os.getenv("WORKERS", "1")),
         "log_level": os.getenv("LOG_LEVEL", "info").lower(),
         "access_log": True,
-        "reload": os.getenv("DEBUG", "false").lower() == "true",
+        "reload": reload_mode,
     }
+    
+    # Use import string for reload mode, app object for production
+    if reload_mode:
+        config["app"] = "app.main:app"  # Import string for reload
+    else:
+        config["app"] = app  # App object for production
+        config["workers"] = int(os.getenv("WORKERS", "1"))
     
     # Production-specific optimizations
     if os.getenv("ENVIRONMENT") == "production":
         config.update({
+            "app": "app.main:app",  # Always use import string in production
             "reload": False,
             "debug": False,
             "workers": max(int(os.getenv("WORKERS", "4")), 2),
         })
     
     return config
+
+
+def initialize_database_if_needed():
+    """Initialize database with demo users if needed."""
+    logger = logging.getLogger(__name__)
+    
+    # Check if auto-initialization is enabled
+    auto_init = os.getenv("AUTO_INIT_DB", "false").lower() == "true"
+    
+    if not auto_init:
+        logger.info("🔧 Database auto-initialization disabled")
+        return
+    
+    try:
+        # Import database initializer
+        from app.core.database_init import db_initializer
+        
+        logger.info("🚀 Auto-initializing database...")
+        
+        # Run initialization
+        result = db_initializer.initialize_database()
+        
+        if result.get('success', False):
+            created_count = result.get('demo_users_created', 0)
+            if created_count > 0:
+                logger.info(f"✅ Created {created_count} demo users")
+            else:
+                logger.info("ℹ️ Demo users already exist")
+        else:
+            logger.error("🚨 Database initialization failed")
+            
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not import database initializer: {e}")
+    except Exception as e:
+        logger.error(f"🚨 Database initialization error: {str(e)}")
 
 
 def print_startup_info():
@@ -131,12 +180,14 @@ def print_startup_info():
     port = os.getenv("PORT", "8000")
     workers = os.getenv("WORKERS", "1")
     debug = os.getenv("DEBUG", "false").lower() == "true"
+    auto_init = os.getenv("AUTO_INIT_DB", "false").lower() == "true"
     
     logger.info("🚀 Starting Writers Platform API")
     logger.info(f"📍 Environment: {environment}")
     logger.info(f"🌐 Server: http://{host}:{port}")
     logger.info(f"⚙️ Workers: {workers}")
     logger.info(f"🐛 Debug mode: {debug}")
+    logger.info(f"🔧 Auto DB Init: {auto_init}")
     
     if debug:
         logger.info(f"📚 API Docs: http://{host}:{port}/docs")
@@ -156,6 +207,9 @@ def main():
         
         # Validate environment
         validate_environment()
+        
+        # Initialize database if needed
+        initialize_database_if_needed()
         
         # Setup signal handlers
         setup_signal_handlers()

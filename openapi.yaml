@@ -1,0 +1,495 @@
+openapi: 3.1.0
+info:
+  title: Writers Platform API
+  description: A modern writing platform API built with FastAPI
+  version: 1.0.0
+paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+        - authentication
+      summary: Login
+      description: |-
+        User login endpoint with rate limiting and security logging.
+
+        Rate limit: 5 attempts per minute per IP
+      operationId: login_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_login_api_v1_auth_login_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/register:
+    post:
+      tags:
+        - authentication
+      summary: Register
+      description: |-
+        User registration endpoint with strong password validation.
+
+        Rate limit: 3 attempts per minute per IP
+      operationId: register_api_v1_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/me:
+    get:
+      tags:
+        - authentication
+      summary: Get Current User Profile
+      description: |-
+        Get current user profile information.
+
+        Rate limit: 30 requests per minute per IP
+        Requires: Valid JWT token
+      operationId: get_current_user_profile_api_v1_auth_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - authentication
+      summary: Logout
+      description: |-
+        User logout endpoint.
+
+        Rate limit: 10 requests per minute per IP
+        Note: With JWT, logout is handled client-side by removing the token.
+        This endpoint is for logging purposes and future token blacklisting.
+      operationId: logout_api_v1_auth_logout_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/auth/validate-token:
+    get:
+      tags:
+        - authentication
+      summary: Validate Token
+      description: |-
+        Validate if the provided token is still valid.
+
+        Rate limit: 60 requests per minute per IP
+        Requires: Valid JWT token
+      operationId: validate_token_api_v1_auth_validate_token_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/auth/request-password-reset:
+    post:
+      tags:
+        - authentication
+      summary: Request Password Reset
+      description: |-
+        Request password reset by email.
+
+        Rate limit: 3 requests per hour per IP (strict security)
+        Returns success message regardless of whether email exists (security)
+      operationId: request_password_reset_api_v1_auth_request_password_reset_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/reset-password:
+    post:
+      tags:
+        - authentication
+      summary: Reset Password
+      description: |-
+        Reset password using reset token.
+
+        Rate limit: 5 attempts per hour per IP
+      operationId: reset_password_api_v1_auth_reset_password_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/verify-reset-token:
+    post:
+      tags:
+        - authentication
+      summary: Verify Reset Token
+      description: |-
+        Verify if a password reset token is valid.
+
+        Rate limit: 10 attempts per hour per IP
+      operationId: verify_reset_token_api_v1_auth_verify_reset_token_post
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/stats:
+    get:
+      tags:
+        - administration
+      summary: Get Database Statistics
+      description: |-
+        Get database statistics.
+
+        Rate limit: 30 requests per minute per IP
+        Requires: Admin privileges
+      operationId: get_database_statistics_api_v1_admin_stats_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/admin/init-database:
+    post:
+      tags:
+        - administration
+      summary: Initialize Database
+      description: |-
+        Initialize database with demo users.
+
+        Rate limit: 5 requests per hour per IP
+        Requires: Admin privileges
+      operationId: initialize_database_api_v1_admin_init_database_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/admin/reset-database:
+    post:
+      tags:
+        - administration
+      summary: Reset Database
+      description: |-
+        Reset database (development only).
+
+        Rate limit: 1 request per hour per IP (very restrictive)
+        Requires: Admin privileges
+      operationId: reset_database_api_v1_admin_reset_database_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/admin/health-check:
+    get:
+      tags:
+        - administration
+      summary: Admin Health Check
+      description: |-
+        Admin health check with database connection test.
+
+        Rate limit: 60 requests per minute per IP
+        Requires: Admin privileges
+      operationId: admin_health_check_api_v1_admin_health_check_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+        - OAuth2PasswordBearer: []
+  /:
+    get:
+      summary: Root
+      description: Root endpoint with basic API information.
+      operationId: root__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health:
+    get:
+      summary: Health Check
+      description: Health check endpoint for monitoring systems.
+      operationId: health_check_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/info:
+    get:
+      summary: Api Info
+      description: API information endpoint.
+      operationId: api_info_api_v1_info_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    Body_login_api_v1_auth_login_post:
+      properties:
+        grant_type:
+          anyOf:
+            - type: string
+              pattern: ^password$
+            - type: 'null'
+          title: Grant Type
+        username:
+          type: string
+          title: Username
+        password:
+          type: string
+          format: password
+          title: Password
+        scope:
+          type: string
+          title: Scope
+          default: ''
+        client_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Client Id
+        client_secret:
+          anyOf:
+            - type: string
+            - type: 'null'
+          format: password
+          title: Client Secret
+      type: object
+      required:
+        - username
+        - password
+      title: Body_login_api_v1_auth_login_post
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    PasswordResetConfirm:
+      properties:
+        token:
+          type: string
+          title: Token
+        new_password:
+          type: string
+          title: New Password
+      type: object
+      required:
+        - token
+        - new_password
+      title: PasswordResetConfirm
+      description: Password reset confirmation payload.
+    PasswordResetRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+      type: object
+      required:
+        - email
+      title: PasswordResetRequest
+      description: Password reset request payload.
+    PasswordResetResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        detail:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Detail
+      type: object
+      required:
+        - message
+      title: PasswordResetResponse
+      description: Password reset response.
+    Token:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+      type: object
+      required:
+        - access_token
+      title: Token
+      description: JWT Token response.
+    UserRegister:
+      properties:
+        username:
+          type: string
+          title: Username
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          title: Password
+        full_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Full Name
+      type: object
+      required:
+        - username
+        - email
+        - password
+      title: UserRegister
+      description: User registration data.
+    UserResponse:
+      properties:
+        username:
+          type: string
+          title: Username
+        email:
+          type: string
+          title: Email
+        full_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Full Name
+        is_active:
+          type: boolean
+          title: Is Active
+          default: true
+      type: object
+      required:
+        - username
+        - email
+      title: UserResponse
+      description: User data in API responses.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: /api/v1/auth/login

@@ -36,4 +36,21 @@ class UserResponse(BaseModel):
     username: str
     email: str
     full_name: Optional[str] = None
-    is_active: bool = True 
+    is_active: bool = True
+
+
+class PasswordResetRequest(BaseModel):
+    """Password reset request payload."""
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    """Password reset confirmation payload."""
+    token: str
+    new_password: str
+
+
+class PasswordResetResponse(BaseModel):
+    """Password reset response."""
+    message: str
+    detail: Optional[str] = None 

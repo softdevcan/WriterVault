@@ -6,8 +6,8 @@
 Yazarlar için modern, sürdürülebilir ve geliştirilebilir bir içerik paylaşım platformu.
 
 ### 1.2 Teknoloji Stack
-- **Frontend:** Next.js 14 (App Router) + TypeScript
-- **Backend:** FastAPI + Python 3.11+
+- **Frontend:** Next.js 14 (App Router) + JavaScript
+- **Backend:** FastAPI + Python 3.1+
 - **Database:** PostgreSQL 15+
 - **ORM:** SQLAlchemy 2.0
 - **Authentication:** JWT + FastAPI Security

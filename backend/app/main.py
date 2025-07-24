@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.admin import router as admin_router
 from app.core.security import generate_secure_token
 
 # Configure logging
@@ -132,6 +133,12 @@ app.include_router(
     auth_router,
     prefix="/api/v1/auth",
     tags=["authentication"]
+)
+
+app.include_router(
+    admin_router,
+    prefix="/api/v1/admin",
+    tags=["administration"]
 )
 
 # Root endpoints
