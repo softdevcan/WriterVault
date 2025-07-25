@@ -2,14 +2,14 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, User, Settings } from 'lucide-react'
-import useAuthStore from '../../store/auth'
+import { PlusCircle, FileText, BookOpen, TrendingUp, Eye } from 'lucide-react'
+import useAuthStore from '@/store/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, isAuthenticated, logout } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -17,109 +17,133 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, router])
 
-  const handleLogout = () => {
-    logout()
-    router.push('/auth/login')
-  }
-
   if (!isAuthenticated || !user) return null
 
   return (
-    <div className="min-h-screen bg-muted/50">
+    <div className="p-6">
       {/* Header */}
-      <header className="bg-background border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-semibold">
-              Yazarlar Platformu
-            </h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-muted-foreground">
-                Hoş geldin, {user.full_name || user.username}
-              </span>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Çıkış
-              </Button>
-            </div>
-          </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-2">
+          Merhaba {user.full_name || user.username}, yazım serüveninize devam edin!
+        </p>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <div className="flex flex-wrap gap-4">
+          <Button 
+            onClick={() => router.push('/dashboard/articles/create')}
+            className="flex-1 min-w-[200px]"
+          >
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Yeni Makale Yaz
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => router.push('/dashboard/collections/create')}
+            className="flex-1 min-w-[200px]"
+          >
+            <BookOpen className="w-4 h-4 mr-2" />
+            Yeni Koleksiyon
+          </Button>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          
-          {/* Welcome Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <User className="h-5 w-5 mr-2" />
-                Hoş Geldin!
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Yazarlar platformuna başarıyla giriş yaptınız. 
-                Buradan yazılarınızı yönetebilirsiniz.
-              </p>
-            </CardContent>
-          </Card>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Toplam Makale</p>
+                <p className="text-2xl font-bold">0</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <BookOpen className="h-8 w-8 text-green-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Koleksiyonlar</p>
+                <p className="text-2xl font-bold">0</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Eye className="h-8 w-8 text-purple-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Toplam Görüntüleme</p>
+                <p className="text-2xl font-bold">0</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <TrendingUp className="h-8 w-8 text-orange-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Bu Ay</p>
+                <p className="text-2xl font-bold">0</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Profile Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Profil Bilgileri</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm font-medium">Kullanıcı Adı:</p>
-                <p className="text-muted-foreground">{user.username}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">E-posta:</p>
-                <p className="text-muted-foreground">{user.email}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">Durum:</p>
-                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                  user.is_active 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                }`}>
-                  {user.is_active ? 'Aktif' : 'Pasif'}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                Hızlı İşlemler
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+      {/* Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Son Makaleler</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Henüz makale yazmamışsınız.</p>
               <Button 
                 variant="outline" 
-                className="w-full justify-start"
-                onClick={() => router.push('/profile')}
+                className="mt-4"
+                onClick={() => router.push('/dashboard/articles/create')}
               >
-                <User className="w-4 h-4 mr-2" />
-                Profili Düzenle
+                İlk makalenizi yazın
               </Button>
-              <Button variant="outline" className="w-full justify-start">
-                Yeni Yazı Oluştur
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                Yazılarım
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Yazım İpuçları</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900">💡 İpucu</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Düzenli yazım alışkanlığı edinin. Günde 15 dakika bile fark yaratır.
+                </p>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900">📝 Öneri</h4>
+                <p className="text-sm text-green-700 mt-1">
+                  Makalelerinizi kategorilere ayırarak daha düzenli bir arşiv oluşturun.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

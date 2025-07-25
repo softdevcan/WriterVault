@@ -54,6 +54,12 @@ async def get_current_user(
     Raises:
         HTTPException: If authentication fails
     """
+    # ⬇️ BU SATIRLARI EKLE (fonksiyonun hemen başına) ⬇️
+    print(f"🔍 Received token: {token[:30]}...")
+    from app.config.settings import settings
+    print(f"🔑 Settings SECRET_KEY: {settings.SECRET_KEY[:15]}...")
+    print(f"🔧 Algorithm: {settings.ALGORITHM}")
+    # ⬆️ SADECE BU SATIRLARI EKLE ⬆️
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -68,7 +74,7 @@ async def get_current_user(
             raise credentials_exception
         
         # Get user from database
-        user = user_repository.get_by_id(db, user_id)
+        user = user_repository.get_by_username(db, user_id)
         if not user:
             logger.warning(f"🚫 User not found: ID {user_id}")
             raise credentials_exception
@@ -121,7 +127,7 @@ def get_current_user_bearer(
             )
         
         # Get user from database
-        user = user_repository.get_by_id(db, user_id)
+        user = user_repository.get_by_username(db, user_id)
         
         if not user:
             logger.warning(f"🚫 User not found: ID {user_id}")

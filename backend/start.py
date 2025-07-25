@@ -110,7 +110,7 @@ def get_config():
     reload_mode = os.getenv("DEBUG", "false").lower() == "true"
     
     config = {
-        "host": os.getenv("HOST", "0.0.0.0"),
+        "host": os.getenv("HOST", "127.0.0.1"),
         "port": int(os.getenv("PORT", "8000")),
         "log_level": os.getenv("LOG_LEVEL", "info").lower(),
         "access_log": True,
