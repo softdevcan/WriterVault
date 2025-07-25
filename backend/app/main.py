@@ -6,7 +6,7 @@ import time
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -157,7 +157,6 @@ app.include_router(
     collections_router,
     prefix="/api/v1/collections",
     tags=["collections"],
-    dependencies=[Depends(limiter)]
 )
 
 # Categories router  
@@ -165,7 +164,6 @@ app.include_router(
     categories_router,
     prefix="/api/v1/categories", 
     tags=["categories"],
-    dependencies=[Depends(limiter)]
 )
 
 # Root endpoints

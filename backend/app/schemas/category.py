@@ -1,11 +1,16 @@
 """
-Category Pydantic schemas for request/response validation.
+Category and Tag Pydantic schemas for request/response validation.
 Modern Pydantic v2 implementation with hierarchical support.
 """
+from __future__ import annotations
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
+
+# ============================================================================
+# CATEGORY SCHEMAS
+# ============================================================================
 
 class CategoryBase(BaseModel):
     """Base category schema with common fields."""
@@ -79,7 +84,7 @@ class CategoryResponse(CategoryBase):
 
 class CategoryWithChildren(CategoryResponse):
     """Schema for category with children categories."""
-    children: List['CategoryResponse'] = Field(default_factory=list)
+    children: List[CategoryResponse] = Field(default_factory=list)
     total_articles_including_children: int = Field(0, description="Total articles including subcategories")
 
 
@@ -90,7 +95,7 @@ class CategoryWithParent(CategoryResponse):
 
 class CategoryTree(CategoryResponse):
     """Schema for hierarchical category tree."""
-    children: List['CategoryTree'] = Field(default_factory=list)
+    children: List[CategoryTree] = Field(default_factory=list)
     level: int = Field(0, description="Hierarchy level (0 for root)")
     path: str = Field("", description="Full category path")
 
@@ -135,6 +140,98 @@ class CategoryMoveRequest(BaseModel):
     new_parent_id: Optional[int] = Field(None, description="New parent category ID (null for root)")
 
 
-# For forward reference resolution
-CategoryWithChildren.model_rebuild()
-CategoryTree.model_rebuild()
+# ============================================================================
+# TAG SCHEMAS
+# ============================================================================
+
+class TagBase(BaseModel):
+    """Base tag schema with common fields."""
+    name: str = Field(..., min_length=1, max_length=50, description="Tag name")
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate and clean tag name."""
+        if not v or not v.strip():
+            raise ValueError('Tag name cannot be empty')
+        return v.strip().lower()
+
+
+class TagCreate(TagBase):
+    """Schema for creating a new tag."""
+    pass
+
+
+class TagUpdate(BaseModel):
+    """Schema for updating an existing tag."""
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+    is_active: Optional[bool] = None
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and clean tag name."""
+        if v is not None:
+            if not v or not v.strip():
+                raise ValueError('Tag name cannot be empty')
+            return v.strip().lower()
+        return v
+
+
+class TagResponse(BaseModel):
+    """Schema for tag responses."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    name: str
+    slug: str
+    usage_count: int = Field(0, description="Number of articles using this tag")
+    is_active: bool = True
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class TagWithArticles(TagResponse):
+    """Schema for tag with article count and recent articles."""
+    recent_articles: int = Field(0, description="Articles in last 30 days")
+
+
+class TagStats(BaseModel):
+    """Schema for tag statistics."""
+    total_tags: int = 0
+    active_tags: int = 0
+    most_used_tags: List[TagResponse] = Field(default_factory=list)
+    unused_tags: int = 0
+    tags_created_this_month: int = 0
+
+
+class TagListParams(BaseModel):
+    """Schema for tag list query parameters."""
+    skip: int = Field(0, ge=0, description="Number of records to skip")
+    limit: int = Field(50, ge=1, le=100, description="Number of records to return")
+    is_active: Optional[bool] = Field(None, description="Filter by active status")
+    min_usage: Optional[int] = Field(None, ge=0, description="Minimum usage count")
+    search: Optional[str] = Field(None, min_length=1, max_length=50, description="Search in tag name")
+    sort_by: str = Field("usage_count", pattern="^(name|usage_count|created_at)$")
+    sort_order: str = Field("desc", pattern="^(asc|desc)$")
+    
+    @field_validator('search')
+    @classmethod
+    def validate_search(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and clean search query."""
+        if v:
+            return v.strip().lower()
+        return v
+
+
+class TagBulkUpdate(BaseModel):
+    """Schema for bulk tag operations."""
+    tag_ids: List[int] = Field(..., min_length=1, max_length=50)
+    is_active: Optional[bool] = None
+
+
+class TagMergeRequest(BaseModel):
+    """Schema for merging tags."""
+    source_tag_ids: List[int] = Field(..., min_length=1, description="Tags to merge from")
+    target_tag_id: int = Field(..., description="Tag to merge into")
+

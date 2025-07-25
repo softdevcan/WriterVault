@@ -10,10 +10,14 @@ from typing import Optional, List
 import logging
 import os
 
-from app.schemas.article import (
-    CollectionCreate, CollectionUpdate, CollectionResponse, 
-    CollectionWithArticles, PaginatedResponse
+# Collection schemas from their proper module
+from app.schemas.collection import (
+    CollectionCreate, CollectionUpdate, CollectionResponse, CollectionListParams, CollectionWithAuthor
 )
+
+# Article schemas for pagination
+from app.schemas.article import PaginatedArticleResponse
+
 from app.services.collection_service import collection_service
 from app.api.deps import get_current_active_user, get_current_user_optional, get_db
 from app.models.user import User
@@ -109,7 +113,7 @@ async def get_collections(
         )
 
 
-@router.get("/{collection_id}", response_model=CollectionWithArticles)
+@router.get("/{collection_id}", response_model=CollectionWithAuthor)
 @limiter.limit(os.getenv("COLLECTION_GET_RATE_LIMIT", "60/minute"))
 async def get_collection(
     request: Request,
@@ -151,7 +155,7 @@ async def get_collection(
         )
 
 
-@router.get("/slug/{slug}", response_model=CollectionWithArticles)
+@router.get("/slug/{slug}", response_model=CollectionWithAuthor)
 @limiter.limit(os.getenv("COLLECTION_GET_RATE_LIMIT", "60/minute"))
 async def get_collection_by_slug(
     request: Request,

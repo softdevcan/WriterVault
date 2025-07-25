@@ -9,9 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.models.collection import Collection, CollectionStatus, CollectionType
 from app.models.user import User
-from app.schemas.article import (
-    CollectionCreate, CollectionUpdate, CollectionResponse, 
-    CollectionWithArticles
+from app.schemas.collection import (
+    CollectionCreate, CollectionUpdate, CollectionResponse, CollectionWithAuthor
 )
 from app.repositories.collection_repository import collection_repository
 from app.repositories.user_repository import user_repository
@@ -111,7 +110,7 @@ class CollectionService:
         db: Session, 
         collection_id: int, 
         current_user: Optional[User] = None
-    ) -> CollectionWithArticles:
+    ) -> CollectionWithAuthor:
         """
         Get collection with articles by ID with permission checks.
         
@@ -142,7 +141,7 @@ class CollectionService:
         db: Session, 
         slug: str, 
         current_user: Optional[User] = None
-    ) -> CollectionWithArticles:
+    ) -> CollectionWithAuthor:
         """
         Get collection with articles by slug with permission checks.
         
@@ -382,9 +381,9 @@ class CollectionService:
         """Convert Collection model to CollectionResponse."""
         return CollectionResponse.model_validate(collection)
     
-    def _convert_to_response_with_articles(self, collection: Collection) -> CollectionWithArticles:
-        """Convert Collection model to CollectionWithArticles."""
-        return CollectionWithArticles.model_validate(collection)
+    def _convert_to_response_with_articles(self, collection: Collection) -> CollectionWithAuthor:
+        """Convert Collection model to CollectionWithAuthor."""
+        return CollectionWithAuthor.model_validate(collection)
 
 
 # Global collection service instance

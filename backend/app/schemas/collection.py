@@ -2,11 +2,14 @@
 Collection Pydantic schemas for request/response validation.
 Modern Pydantic v2 implementation for article series and books.
 """
+from __future__ import annotations
 from datetime import datetime
 from typing import Optional, List
 from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+# Import related schemas directly (no circular import risk)
 from app.schemas.user import UserResponse
 
 
@@ -79,6 +82,22 @@ class CollectionUpdate(BaseModel):
         return v
 
 
+# ============================================================================
+# RESPONSE SCHEMAS
+# ============================================================================
+
+class CollectionSummary(BaseModel):
+    """Collection summary schema for article relations (no circular import)."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    title: str
+    slug: str
+    type: CollectionType
+    status: CollectionStatus
+    article_count: int = Field(0, description="Number of articles in collection")
+
+
 class CollectionResponse(CollectionBase):
     """Schema for collection responses."""
     model_config = ConfigDict(from_attributes=True)
@@ -99,14 +118,8 @@ class CollectionWithAuthor(CollectionResponse):
     author: UserResponse
 
 
-class CollectionWithArticles(CollectionWithAuthor):
-    """Schema for collection with articles included."""
-    # Import here to avoid circular imports
-    from typing import TYPE_CHECKING
-    if TYPE_CHECKING:
-        from app.schemas.article import ArticleResponse
-    
-    articles: List['ArticleResponse'] = Field(default_factory=list)
+# CollectionWithArticles removed to avoid circular dependency
+# Use separate API calls to get collection + articles
 
 
 class CollectionStats(BaseModel):
@@ -162,7 +175,3 @@ class CollectionReorderRequest(BaseModel):
             raise ValueError('Article IDs must be unique')
         
         return v
-
-
-# For forward reference resolution
-CollectionWithArticles.model_rebuild()

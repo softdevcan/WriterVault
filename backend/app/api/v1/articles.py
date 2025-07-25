@@ -10,10 +10,18 @@ from typing import Optional
 import logging
 import os
 
+# Article schemas - clean imports
 from app.schemas.article import (
-    ArticleCreate, ArticleUpdate, ArticleResponse, ArticleListResponse,
-    PaginatedResponse, ArticleFilter, ArticleStatusUpdate
+    ArticleCreate, 
+    ArticleUpdate, 
+    ArticleResponse, 
+    ArticleListResponse,
+    PaginatedArticleResponse,
+    ArticleFilter, 
+    ArticleStatusUpdate
 )
+
+# Services and dependencies  
 from app.services.article_service import article_service
 from app.api.deps import get_current_active_user, get_current_user_optional, get_db
 from app.models.user import User
@@ -72,7 +80,7 @@ async def create_article(
         )
 
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("/", response_model=PaginatedArticleResponse)
 @limiter.limit(os.getenv("ARTICLE_LIST_RATE_LIMIT", "30/minute"))
 async def get_articles(
     request: Request,
@@ -113,10 +121,23 @@ async def get_articles(
             sort_order=sort_order
         )
         
-        articles = article_service.get_articles(db, filters, current_user)
+        articles, total = article_service.get_articles(db, filters, current_user)
         
-        logger.info(f"✅ Articles retrieved: {len(articles.items)} items, {articles.total} total")
-        return articles
+        # Calculate pagination
+        total_pages = (total + limit - 1) // limit
+        page = (skip // limit) + 1
+        
+        # Create paginated response
+        response = PaginatedArticleResponse(
+            articles=articles,
+            total=total,
+            page=page,
+            size=len(articles),
+            total_pages=total_pages
+        )
+        
+        logger.info(f"✅ Articles retrieved: {len(articles)} items, {total} total")
+        return response
         
     except ValidationError as e:
         logger.warning(f"🚫 Articles list validation error: {str(e)}")
@@ -370,7 +391,7 @@ async def delete_article(
         )
 
 
-@router.get("/user/{user_id}", response_model=PaginatedResponse)
+@router.get("/user/{user_id}", response_model=PaginatedArticleResponse)
 @limiter.limit(os.getenv("USER_ARTICLES_RATE_LIMIT", "30/minute"))
 async def get_user_articles(
     request: Request,
@@ -390,12 +411,25 @@ async def get_user_articles(
     logger.info(f"👤 User articles request: user ID {user_id} from IP: {request.client.host if request.client else 'unknown'}")
     
     try:
-        articles = article_service.get_user_articles(
+        articles, total = article_service.get_user_articles(
             db, user_id, status_filter, skip, limit, current_user
         )
         
-        logger.info(f"✅ User articles retrieved: {len(articles.items)} items, {articles.total} total")
-        return articles
+        # Calculate pagination
+        total_pages = (total + limit - 1) // limit
+        page = (skip // limit) + 1
+        
+        # Create paginated response
+        response = PaginatedArticleResponse(
+            articles=articles,
+            total=total,
+            page=page,
+            size=len(articles),
+            total_pages=total_pages
+        )
+        
+        logger.info(f"✅ User articles retrieved: {len(articles)} items, {total} total")
+        return response
         
     except Exception as e:
         logger.error(f"🚨 User articles retrieval error: {str(e)}")

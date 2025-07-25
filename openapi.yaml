@@ -55,7 +55,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/app__schemas__auth__UserResponse'
         '422':
           description: Validation Error
           content:
@@ -79,7 +79,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/app__schemas__auth__UserResponse'
       security:
         - OAuth2PasswordBearer: []
   /api/v1/auth/logout:
@@ -285,6 +285,1159 @@ paths:
               schema: {}
       security:
         - OAuth2PasswordBearer: []
+  /api/v1/articles/:
+    post:
+      tags:
+        - articles
+      summary: Create Article
+      description: |-
+        Create a new article.
+
+        Rate limit: 10 articles per minute per IP
+        Requires: Valid JWT token, active user
+      operationId: create_article_api_v1_articles__post
+      security:
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - articles
+      summary: Get Articles
+      description: |-
+        Get articles with filtering, sorting, and pagination.
+
+        Rate limit: 30 requests per minute per IP
+        Authentication: Optional
+      operationId: get_articles_api_v1_articles__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/ArticleStatus'
+              - type: 'null'
+            title: Status
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: integer
+              - type: 'null'
+            title: Category Id
+        - name: collection_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: integer
+              - type: 'null'
+            title: Collection Id
+        - name: author_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: integer
+              - type: 'null'
+            title: Author Id
+        - name: is_featured
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Is Featured
+        - name: tag
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Tag
+        - name: search
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Search
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            title: Skip
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Limit
+        - name: sort_by
+          in: query
+          required: false
+          schema:
+            type: string
+            default: created_at
+            title: Sort By
+        - name: sort_order
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: ^(asc|desc)$
+            default: desc
+            title: Sort Order
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/articles/{article_id}:
+    get:
+      tags:
+        - articles
+      summary: Get Article
+      description: |-
+        Get a specific article by ID.
+
+        Rate limit: 60 requests per minute per IP
+        Authentication: Optional (required for draft articles)
+      operationId: get_article_api_v1_articles__article_id__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Article Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - articles
+      summary: Update Article
+      description: |-
+        Update an existing article.
+
+        Rate limit: 20 updates per minute per IP
+        Requires: Valid JWT token, article ownership or admin
+      operationId: update_article_api_v1_articles__article_id__put
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Article Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - articles
+      summary: Delete Article
+      description: |-
+        Delete an article.
+
+        Rate limit: 10 deletions per minute per IP
+        Requires: Valid JWT token, article ownership or admin
+      operationId: delete_article_api_v1_articles__article_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Article Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/articles/slug/{slug}:
+    get:
+      tags:
+        - articles
+      summary: Get Article By Slug
+      description: |-
+        Get a specific article by slug.
+
+        Rate limit: 60 requests per minute per IP
+        Authentication: Optional (required for draft articles)
+      operationId: get_article_by_slug_api_v1_articles_slug__slug__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Slug
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/articles/{article_id}/status:
+    patch:
+      tags:
+        - articles
+      summary: Update Article Status
+      description: |-
+        Update article status (publish/unpublish/archive).
+
+        Rate limit: 30 updates per minute per IP
+        Requires: Valid JWT token, article ownership or admin
+      operationId: update_article_status_api_v1_articles__article_id__status_patch
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Article Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/articles/user/{user_id}:
+    get:
+      tags:
+        - articles
+      summary: Get User Articles
+      description: |-
+        Get articles by a specific user.
+
+        Rate limit: 30 requests per minute per IP
+        Authentication: Optional (required to see drafts)
+      operationId: get_user_articles_api_v1_articles_user__user_id__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/ArticleStatus'
+              - type: 'null'
+            title: Status
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            title: Skip
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/articles/{article_id}/publish:
+    post:
+      tags:
+        - articles
+      summary: Publish Article
+      description: |-
+        Publish a draft article.
+
+        Rate limit: 20 publishes per minute per IP
+        Requires: Valid JWT token, article ownership or admin
+      operationId: publish_article_api_v1_articles__article_id__publish_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Article Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/articles/{article_id}/unpublish:
+    post:
+      tags:
+        - articles
+      summary: Unpublish Article
+      description: |-
+        Unpublish a published article (move to draft).
+
+        Rate limit: 20 unpublishes per minute per IP
+        Requires: Valid JWT token, article ownership or admin
+      operationId: unpublish_article_api_v1_articles__article_id__unpublish_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Article Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/collections/:
+    post:
+      tags:
+        - collections
+      summary: Create Collection
+      description: |-
+        Create a new collection (series/book).
+
+        Rate limit: 5 collections per minute per IP
+        Requires: Valid JWT token, active user
+      operationId: create_collection_api_v1_collections__post
+      security:
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - collections
+      summary: Get Collections
+      description: |-
+        Get collections with filtering and pagination.
+
+        Rate limit: 30 requests per minute per IP
+        Authentication: Optional
+      operationId: get_collections_api_v1_collections__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/app__models__collection__CollectionType'
+              - type: 'null'
+            title: Type
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/app__models__collection__CollectionStatus'
+              - type: 'null'
+            title: Status
+        - name: author_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: integer
+              - type: 'null'
+            title: Author Id
+        - name: is_featured
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Is Featured
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            title: Skip
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectionResponse'
+                title: Response Get Collections Api V1 Collections  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/collections/{collection_id}:
+    get:
+      tags:
+        - collections
+      summary: Get Collection
+      description: |-
+        Get a specific collection with its articles.
+
+        Rate limit: 60 requests per minute per IP
+        Authentication: Optional (required for draft collections)
+      operationId: get_collection_api_v1_collections__collection_id__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Collection Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionWithAuthor'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - collections
+      summary: Update Collection
+      description: |-
+        Update an existing collection.
+
+        Rate limit: 10 updates per minute per IP
+        Requires: Valid JWT token, collection ownership or admin
+      operationId: update_collection_api_v1_collections__collection_id__put
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Collection Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - collections
+      summary: Delete Collection
+      description: |-
+        Delete a collection.
+
+        Rate limit: 5 deletions per minute per IP
+        Requires: Valid JWT token, collection ownership or admin
+      operationId: delete_collection_api_v1_collections__collection_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Collection Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/collections/slug/{slug}:
+    get:
+      tags:
+        - collections
+      summary: Get Collection By Slug
+      description: |-
+        Get a specific collection by slug with its articles.
+
+        Rate limit: 60 requests per minute per IP
+        Authentication: Optional (required for draft collections)
+      operationId: get_collection_by_slug_api_v1_collections_slug__slug__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Slug
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionWithAuthor'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/collections/user/{user_id}:
+    get:
+      tags:
+        - collections
+      summary: Get User Collections
+      description: |-
+        Get collections by a specific user.
+
+        Rate limit: 30 requests per minute per IP
+        Authentication: Optional (required to see drafts)
+      operationId: get_user_collections_api_v1_collections_user__user_id__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/app__models__collection__CollectionStatus'
+              - type: 'null'
+            title: Status
+        - name: type
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/app__models__collection__CollectionType'
+              - type: 'null'
+            title: Type
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            title: Skip
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectionResponse'
+                title: Response Get User Collections Api V1 Collections User  User Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/collections/{collection_id}/publish:
+    post:
+      tags:
+        - collections
+      summary: Publish Collection
+      description: |-
+        Publish a draft collection.
+
+        Rate limit: 10 publishes per minute per IP
+        Requires: Valid JWT token, collection ownership or admin
+      operationId: publish_collection_api_v1_collections__collection_id__publish_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Collection Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/categories/:
+    post:
+      tags:
+        - categories
+      summary: Create Category
+      description: |-
+        Create a new category.
+            
+            Rate limit: 10 requests per minute per IP
+            Requires: Admin privileges
+      operationId: create_category_api_v1_categories__post
+      security:
+        - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - categories
+      summary: Get Categories
+      description: |-
+        Get categories with filtering and pagination.
+            
+            Rate limit: 100 requests per minute per IP
+            Public endpoint (no authentication required)
+      operationId: get_categories_api_v1_categories__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            description: Number of records to skip
+            default: 0
+            title: Skip
+          description: Number of records to skip
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            description: Number of records to return
+            default: 20
+            title: Limit
+          description: Number of records to return
+        - name: parent_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: integer
+              - type: 'null'
+            description: Filter by parent category
+            title: Parent Id
+          description: Filter by parent category
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            description: Filter by active status
+            title: Is Active
+          description: Filter by active status
+        - name: search
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                minLength: 1
+                maxLength: 100
+              - type: 'null'
+            description: Search term
+            title: Search
+          description: Search term
+        - name: include_children
+          in: query
+          required: false
+          schema:
+            type: boolean
+            description: Include children in response
+            default: false
+            title: Include Children
+          description: Include children in response
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+                title: Response Get Categories Api V1 Categories  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/categories/tree:
+    get:
+      tags:
+        - categories
+      summary: Get Category Tree
+      description: |-
+        Get hierarchical category tree.
+            
+            Rate limit: 60 requests per minute per IP
+            Public endpoint (shows only active categories for non-admin users)
+      operationId: get_category_tree_api_v1_categories_tree_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/CategoryTree'
+                type: array
+                title: Response Get Category Tree Api V1 Categories Tree Get
+      security:
+        - HTTPBearer: []
+  /api/v1/categories/stats:
+    get:
+      tags:
+        - categories
+      summary: Get Category Statistics
+      description: |-
+        Get category statistics.
+            
+            Rate limit: 30 requests per minute per IP
+            Requires: Admin privileges
+      operationId: get_category_statistics_api_v1_categories_stats_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryStats'
+      security:
+        - HTTPBearer: []
+  /api/v1/categories/{category_id}:
+    get:
+      tags:
+        - categories
+      summary: Get Category
+      description: |-
+        Get category by ID with children.
+            
+            Rate limit: 120 requests per minute per IP
+            Public endpoint (shows only active for non-admin users)
+      operationId: get_category_api_v1_categories__category_id__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Category Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWithChildren'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - categories
+      summary: Update Category
+      description: |-
+        Update category by ID.
+            
+            Rate limit: 20 requests per minute per IP
+            Requires: Admin privileges
+      operationId: update_category_api_v1_categories__category_id__put
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Category Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - categories
+      summary: Delete Category
+      description: |-
+        Delete category by ID.
+            
+            Rate limit: 10 requests per minute per IP
+            Requires: Admin privileges
+      operationId: delete_category_api_v1_categories__category_id__delete
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Category Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/categories/slug/{slug}:
+    get:
+      tags:
+        - categories
+      summary: Get Category by Slug
+      description: |-
+        Get category by slug with children.
+            
+            Rate limit: 120 requests per minute per IP
+            Public endpoint (shows only active for non-admin users)
+      operationId: get_category_by_slug_api_v1_categories_slug__slug__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Slug
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWithChildren'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/categories/{category_id}/move:
+    post:
+      tags:
+        - categories
+      summary: Move Category
+      description: |-
+        Move category to new parent.
+            
+            Rate limit: 20 requests per minute per IP
+            Requires: Admin privileges
+      operationId: move_category_api_v1_categories__category_id__move_post
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Category Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryMoveRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/categories/bulk-update:
+    post:
+      tags:
+        - categories
+      summary: Bulk Update Categories
+      description: |-
+        Bulk update categories.
+            
+            Rate limit: 5 requests per minute per IP
+            Requires: Admin privileges
+      operationId: bulk_update_categories_api_v1_categories_bulk_update_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryBulkUpdate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - HTTPBearer: []
   /:
     get:
       summary: Root
@@ -320,6 +1473,382 @@ paths:
               schema: {}
 components:
   schemas:
+    ArticleCreate:
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Title
+          description: Article title
+        summary:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Summary
+          description: Article summary
+        content:
+          type: string
+          minLength: 1
+          title: Content
+          description: Article content
+        meta_description:
+          anyOf:
+            - type: string
+              maxLength: 160
+            - type: 'null'
+          title: Meta Description
+          description: SEO meta description
+        meta_keywords:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          title: Meta Keywords
+          description: SEO keywords
+        category_id:
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          title: Category Id
+          description: Category ID
+        collection_id:
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          title: Collection Id
+          description: Collection ID
+        order_in_collection:
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          title: Order In Collection
+          description: Order in collection
+        allow_comments:
+          type: boolean
+          title: Allow Comments
+          description: Allow comments on article
+          default: true
+        is_featured:
+          type: boolean
+          title: Is Featured
+          description: Featured article
+          default: false
+        status:
+          $ref: '#/components/schemas/ArticleStatus'
+          description: Article status
+          default: draft
+        scheduled_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Scheduled At
+          description: Scheduled publication time
+        tag_names:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: 'null'
+          title: Tag Names
+          description: List of tag names
+      type: object
+      required:
+        - title
+        - content
+      title: ArticleCreate
+      description: Schema for creating a new article.
+    ArticleListResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        title:
+          type: string
+          title: Title
+        slug:
+          type: string
+          title: Slug
+        summary:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Summary
+        status:
+          $ref: '#/components/schemas/ArticleStatus'
+        is_featured:
+          type: boolean
+          title: Is Featured
+        reading_time:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Reading Time
+        order_in_collection:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Order In Collection
+        view_count:
+          type: integer
+          title: View Count
+        like_count:
+          type: integer
+          title: Like Count
+        comment_count:
+          type: integer
+          title: Comment Count
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        published_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Published At
+        author:
+          $ref: '#/components/schemas/app__schemas__user__UserResponse'
+        category:
+          anyOf:
+            - $ref: '#/components/schemas/CategoryResponse'
+            - type: 'null'
+        collection:
+          anyOf:
+            - $ref: '#/components/schemas/CollectionSummary'
+            - type: 'null'
+        tags:
+          items:
+            $ref: '#/components/schemas/TagResponse'
+          type: array
+          title: Tags
+          default: []
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - status
+        - is_featured
+        - view_count
+        - like_count
+        - comment_count
+        - created_at
+        - author
+      title: ArticleListResponse
+      description: Article list item response (without full content).
+    ArticleResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        title:
+          type: string
+          title: Title
+        slug:
+          type: string
+          title: Slug
+        summary:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Summary
+        content:
+          type: string
+          title: Content
+        meta_description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Meta Description
+        reading_time:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Reading Time
+        status:
+          $ref: '#/components/schemas/ArticleStatus'
+        is_featured:
+          type: boolean
+          title: Is Featured
+        allow_comments:
+          type: boolean
+          title: Allow Comments
+        order_in_collection:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Order In Collection
+        view_count:
+          type: integer
+          title: View Count
+        like_count:
+          type: integer
+          title: Like Count
+        comment_count:
+          type: integer
+          title: Comment Count
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+        published_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Published At
+        author:
+          $ref: '#/components/schemas/app__schemas__user__UserResponse'
+        category:
+          anyOf:
+            - $ref: '#/components/schemas/CategoryResponse'
+            - type: 'null'
+        collection:
+          anyOf:
+            - $ref: '#/components/schemas/CollectionSummary'
+            - type: 'null'
+        tags:
+          items:
+            $ref: '#/components/schemas/TagResponse'
+          type: array
+          title: Tags
+          default: []
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - content
+        - status
+        - is_featured
+        - allow_comments
+        - view_count
+        - like_count
+        - comment_count
+        - created_at
+        - author
+      title: ArticleResponse
+      description: Complete article response schema.
+    ArticleStatus:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+        - scheduled
+      title: ArticleStatus
+      description: Article publication status.
+    ArticleStatusUpdate:
+      properties:
+        status:
+          $ref: '#/components/schemas/ArticleStatus'
+          description: New article status
+        scheduled_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Scheduled At
+          description: Scheduled publication time
+      type: object
+      required:
+        - status
+      title: ArticleStatusUpdate
+      description: Schema for updating article status only.
+    ArticleUpdate:
+      properties:
+        title:
+          anyOf:
+            - type: string
+              maxLength: 255
+              minLength: 1
+            - type: 'null'
+          title: Title
+        summary:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Summary
+        content:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Content
+        meta_description:
+          anyOf:
+            - type: string
+              maxLength: 160
+            - type: 'null'
+          title: Meta Description
+        meta_keywords:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          title: Meta Keywords
+        category_id:
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          title: Category Id
+        collection_id:
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          title: Collection Id
+        order_in_collection:
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          title: Order In Collection
+        status:
+          anyOf:
+            - $ref: '#/components/schemas/ArticleStatus'
+            - type: 'null'
+        allow_comments:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Allow Comments
+        is_featured:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Is Featured
+        scheduled_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Scheduled At
+        tag_names:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: 'null'
+          title: Tag Names
+      type: object
+      title: ArticleUpdate
+      description: Schema for updating an existing article.
     Body_login_api_v1_auth_login_post:
       properties:
         grant_type:
@@ -355,6 +1884,628 @@ components:
         - username
         - password
       title: Body_login_api_v1_auth_login_post
+    CategoryBulkUpdate:
+      properties:
+        category_ids:
+          items:
+            type: integer
+          type: array
+          maxItems: 50
+          minItems: 1
+          title: Category Ids
+        is_active:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Is Active
+        parent_id:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Parent Id
+      type: object
+      required:
+        - category_ids
+      title: CategoryBulkUpdate
+      description: Schema for bulk category operations.
+    CategoryCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+          description: Category name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Description
+          description: Category description
+        color:
+          anyOf:
+            - type: string
+              pattern: ^#[0-9A-Fa-f]{6}$
+            - type: 'null'
+          title: Color
+          description: Category color (hex)
+        icon:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Icon
+          description: Category icon name
+        parent_id:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Parent Id
+          description: Parent category ID for hierarchical structure
+      type: object
+      required:
+        - name
+      title: CategoryCreate
+      description: Schema for creating a new category.
+    CategoryMoveRequest:
+      properties:
+        new_parent_id:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: New Parent Id
+          description: New parent category ID (null for root)
+      type: object
+      title: CategoryMoveRequest
+      description: Schema for moving category to different parent.
+    CategoryResponse:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+          description: Category name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Description
+          description: Category description
+        color:
+          anyOf:
+            - type: string
+              pattern: ^#[0-9A-Fa-f]{6}$
+            - type: 'null'
+          title: Color
+          description: Category color (hex)
+        icon:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Icon
+          description: Category icon name
+        id:
+          type: integer
+          title: Id
+        slug:
+          type: string
+          title: Slug
+        parent_id:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Parent Id
+        is_active:
+          type: boolean
+          title: Is Active
+          default: true
+        article_count:
+          type: integer
+          title: Article Count
+          description: Number of articles in this category
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+      type: object
+      required:
+        - name
+        - id
+        - slug
+        - created_at
+      title: CategoryResponse
+      description: Schema for category responses.
+    CategoryStats:
+      properties:
+        total_categories:
+          type: integer
+          title: Total Categories
+          default: 0
+        active_categories:
+          type: integer
+          title: Active Categories
+          default: 0
+        root_categories:
+          type: integer
+          title: Root Categories
+          default: 0
+        max_depth:
+          type: integer
+          title: Max Depth
+          default: 0
+        most_used_category:
+          anyOf:
+            - $ref: '#/components/schemas/CategoryResponse'
+            - type: 'null'
+        categories_with_articles:
+          type: integer
+          title: Categories With Articles
+          default: 0
+      type: object
+      title: CategoryStats
+      description: Schema for category statistics.
+    CategoryTree:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+          description: Category name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Description
+          description: Category description
+        color:
+          anyOf:
+            - type: string
+              pattern: ^#[0-9A-Fa-f]{6}$
+            - type: 'null'
+          title: Color
+          description: Category color (hex)
+        icon:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Icon
+          description: Category icon name
+        id:
+          type: integer
+          title: Id
+        slug:
+          type: string
+          title: Slug
+        parent_id:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Parent Id
+        is_active:
+          type: boolean
+          title: Is Active
+          default: true
+        article_count:
+          type: integer
+          title: Article Count
+          description: Number of articles in this category
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+        children:
+          items:
+            $ref: '#/components/schemas/CategoryTree'
+          type: array
+          title: Children
+        level:
+          type: integer
+          title: Level
+          description: Hierarchy level (0 for root)
+          default: 0
+        path:
+          type: string
+          title: Path
+          description: Full category path
+          default: ''
+      type: object
+      required:
+        - name
+        - id
+        - slug
+        - created_at
+      title: CategoryTree
+      description: Schema for hierarchical category tree.
+    CategoryUpdate:
+      properties:
+        name:
+          anyOf:
+            - type: string
+              maxLength: 100
+              minLength: 1
+            - type: 'null'
+          title: Name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Description
+        color:
+          anyOf:
+            - type: string
+              pattern: ^#[0-9A-Fa-f]{6}$
+            - type: 'null'
+          title: Color
+        icon:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Icon
+        parent_id:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Parent Id
+        is_active:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Is Active
+      type: object
+      title: CategoryUpdate
+      description: Schema for updating an existing category.
+    CategoryWithChildren:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+          description: Category name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Description
+          description: Category description
+        color:
+          anyOf:
+            - type: string
+              pattern: ^#[0-9A-Fa-f]{6}$
+            - type: 'null'
+          title: Color
+          description: Category color (hex)
+        icon:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Icon
+          description: Category icon name
+        id:
+          type: integer
+          title: Id
+        slug:
+          type: string
+          title: Slug
+        parent_id:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Parent Id
+        is_active:
+          type: boolean
+          title: Is Active
+          default: true
+        article_count:
+          type: integer
+          title: Article Count
+          description: Number of articles in this category
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+        children:
+          items:
+            $ref: '#/components/schemas/CategoryResponse'
+          type: array
+          title: Children
+        total_articles_including_children:
+          type: integer
+          title: Total Articles Including Children
+          description: Total articles including subcategories
+          default: 0
+      type: object
+      required:
+        - name
+        - id
+        - slug
+        - created_at
+      title: CategoryWithChildren
+      description: Schema for category with children categories.
+    CollectionCreate:
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Title
+          description: Collection title
+        description:
+          anyOf:
+            - type: string
+              maxLength: 1000
+            - type: 'null'
+          title: Description
+          description: Collection description
+        type:
+          $ref: '#/components/schemas/app__schemas__collection__CollectionType'
+          description: Collection type (series or book)
+        cover_image:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Cover Image
+          description: Cover image URL
+      type: object
+      required:
+        - title
+        - type
+      title: CollectionCreate
+      description: Schema for creating a new collection.
+    CollectionResponse:
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Title
+          description: Collection title
+        description:
+          anyOf:
+            - type: string
+              maxLength: 1000
+            - type: 'null'
+          title: Description
+          description: Collection description
+        type:
+          $ref: '#/components/schemas/CollectionType-Output'
+          description: Collection type (series or book)
+        cover_image:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Cover Image
+          description: Cover image URL
+        id:
+          type: integer
+          title: Id
+        slug:
+          type: string
+          title: Slug
+        status:
+          $ref: '#/components/schemas/CollectionStatus-Output'
+        author_id:
+          type: integer
+          title: Author Id
+        article_count:
+          type: integer
+          title: Article Count
+          description: Number of articles in collection
+          default: 0
+        total_views:
+          type: integer
+          title: Total Views
+          description: Total views across all articles
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+        published_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Published At
+      type: object
+      required:
+        - title
+        - type
+        - id
+        - slug
+        - status
+        - author_id
+        - created_at
+      title: CollectionResponse
+      description: Schema for collection responses.
+    CollectionStatus-Output:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+      title: CollectionStatus
+      description: Collection status enumeration.
+    CollectionSummary:
+      properties:
+        id:
+          type: integer
+          title: Id
+        title:
+          type: string
+          title: Title
+        slug:
+          type: string
+          title: Slug
+        type:
+          $ref: '#/components/schemas/CollectionType-Output'
+        status:
+          $ref: '#/components/schemas/CollectionStatus-Output'
+        article_count:
+          type: integer
+          title: Article Count
+          description: Number of articles in collection
+          default: 0
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - type
+        - status
+      title: CollectionSummary
+      description: Collection summary schema for article relations (no circular import).
+    CollectionType-Output:
+      type: string
+      enum:
+        - series
+        - book
+      title: CollectionType
+      description: Collection type enumeration.
+    CollectionUpdate:
+      properties:
+        title:
+          anyOf:
+            - type: string
+              maxLength: 200
+              minLength: 1
+            - type: 'null'
+          title: Title
+        description:
+          anyOf:
+            - type: string
+              maxLength: 1000
+            - type: 'null'
+          title: Description
+        type:
+          anyOf:
+            - $ref: '#/components/schemas/app__schemas__collection__CollectionType'
+            - type: 'null'
+        status:
+          anyOf:
+            - $ref: '#/components/schemas/app__schemas__collection__CollectionStatus'
+            - type: 'null'
+        cover_image:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Cover Image
+      type: object
+      title: CollectionUpdate
+      description: Schema for updating an existing collection.
+    CollectionWithAuthor:
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Title
+          description: Collection title
+        description:
+          anyOf:
+            - type: string
+              maxLength: 1000
+            - type: 'null'
+          title: Description
+          description: Collection description
+        type:
+          $ref: '#/components/schemas/CollectionType-Output'
+          description: Collection type (series or book)
+        cover_image:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Cover Image
+          description: Cover image URL
+        id:
+          type: integer
+          title: Id
+        slug:
+          type: string
+          title: Slug
+        status:
+          $ref: '#/components/schemas/CollectionStatus-Output'
+        author_id:
+          type: integer
+          title: Author Id
+        article_count:
+          type: integer
+          title: Article Count
+          description: Number of articles in collection
+          default: 0
+        total_views:
+          type: integer
+          title: Total Views
+          description: Total views across all articles
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+        published_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Published At
+        author:
+          $ref: '#/components/schemas/app__schemas__user__UserResponse'
+      type: object
+      required:
+        - title
+        - type
+        - id
+        - slug
+        - status
+        - author_id
+        - created_at
+        - author
+      title: CollectionWithAuthor
+      description: Schema for collection with author information.
     HTTPValidationError:
       properties:
         detail:
@@ -364,6 +2515,34 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    PaginatedArticleResponse:
+      properties:
+        articles:
+          items:
+            $ref: '#/components/schemas/ArticleListResponse'
+          type: array
+          title: Articles
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          title: Page
+        size:
+          type: integer
+          title: Size
+        total_pages:
+          type: integer
+          title: Total Pages
+      type: object
+      required:
+        - articles
+        - total
+        - page
+        - size
+        - total_pages
+      title: PaginatedArticleResponse
+      description: Paginated article response.
     PasswordResetConfirm:
       properties:
         token:
@@ -404,6 +2583,44 @@ components:
         - message
       title: PasswordResetResponse
       description: Password reset response.
+    TagResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        slug:
+          type: string
+          title: Slug
+        usage_count:
+          type: integer
+          title: Usage Count
+          description: Number of articles using this tag
+          default: 0
+        is_active:
+          type: boolean
+          title: Is Active
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Updated At
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - created_at
+      title: TagResponse
+      description: Schema for tag responses.
     Token:
       properties:
         access_token:
@@ -442,7 +2659,46 @@ components:
         - password
       title: UserRegister
       description: User registration data.
-    UserResponse:
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+    app__models__collection__CollectionStatus:
+      type: string
+      enum:
+        - draft
+        - published
+        - completed
+        - archived
+      title: CollectionStatus
+      description: Collection publication status.
+    app__models__collection__CollectionType:
+      type: string
+      enum:
+        - series
+        - book
+        - anthology
+        - course
+      title: CollectionType
+      description: Collection type enum.
+    app__schemas__auth__UserResponse:
       properties:
         username:
           type: string
@@ -465,27 +2721,45 @@ components:
         - email
       title: UserResponse
       description: User data in API responses.
-    ValidationError:
+    app__schemas__collection__CollectionStatus:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+      title: CollectionStatus
+      description: Collection status enumeration.
+    app__schemas__collection__CollectionType:
+      type: string
+      enum:
+        - series
+        - book
+      title: CollectionType
+      description: Collection type enumeration.
+    app__schemas__user__UserResponse:
       properties:
-        loc:
-          items:
-            anyOf:
-              - type: string
-              - type: integer
-          type: array
-          title: Location
-        msg:
+        id:
+          type: integer
+          title: Id
+        username:
           type: string
-          title: Message
-        type:
-          type: string
-          title: Error Type
+          title: Username
+        full_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Full Name
+        avatar_url:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Avatar Url
       type: object
       required:
-        - loc
-        - msg
-        - type
-      title: ValidationError
+        - id
+        - username
+      title: UserResponse
+      description: Basic user response schema for article relations.
   securitySchemes:
     OAuth2PasswordBearer:
       type: oauth2
@@ -493,3 +2767,6 @@ components:
         password:
           scopes: {}
           tokenUrl: /api/v1/auth/login
+    HTTPBearer:
+      type: http
+      scheme: bearer

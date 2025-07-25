@@ -1,326 +1,394 @@
 """
-Category Repository for database operations.
-Implements Repository pattern for clean data access layer with hierarchical support.
+Category Service for business logic operations.
+Handles category-related business logic and validation.
 """
 from typing import Optional, List, Dict, Any
 import logging
+import re
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_, func, desc, asc
+from sqlalchemy.orm import Session
 
 from app.models.category import Category
-from app.models.article import Article
-from app.repositories.base_repository import BaseRepository
+from app.models.user import User
+from app.repositories.category_repository import category_repository
+from app.schemas.category import (
+    CategoryCreate, CategoryUpdate, CategoryResponse, CategoryWithChildren,
+    CategoryTree, CategoryStats, CategoryListParams, CategoryBulkUpdate,
+    CategoryMoveRequest
+)
+from app.core.exceptions import NotFoundError, ValidationError, PermissionError
 
 logger = logging.getLogger(__name__)
 
 
-class CategoryRepository(BaseRepository[Category]):
-    """Repository for category database operations."""
+class CategoryService:
+    """Service class for category business logic."""
     
     def __init__(self):
-        super().__init__(Category)
+        self.repository = category_repository
     
-    def get_by_slug(self, db: Session, slug: str) -> Optional[Category]:
+    def create_category(
+        self, 
+        db: Session, 
+        category_data: CategoryCreate,
+        current_user: User
+    ) -> Category:
+        """
+        Create a new category.
+        
+        Args:
+            db: Database session
+            category_data: Category creation data
+            current_user: Current authenticated user
+            
+        Returns:
+            Created category
+            
+        Raises:
+            ValidationError: If validation fails
+            PermissionError: If user doesn't have permission
+        """
+        try:
+            # Check if user has permission (admin only for now)
+            if not current_user.is_admin:
+                raise PermissionError("Admin privileges required to create categories")
+            
+            # Validate parent category exists if provided
+            if category_data.parent_id:
+                parent = self.repository.get_by_id(db, category_data.parent_id)
+                if not parent:
+                    raise ValidationError(f"Parent category with ID {category_data.parent_id} not found")
+                
+                if not parent.is_active:
+                    raise ValidationError("Cannot create category under inactive parent")
+            
+            # Check if category name already exists
+            existing = self.repository.get_by_name(db, category_data.name)
+            if existing:
+                raise ValidationError(f"Category with name '{category_data.name}' already exists")
+            
+            # Generate slug
+            slug = self._generate_slug(category_data.name)
+            existing_slug = self.repository.get_by_slug(db, slug)
+            if existing_slug:
+                slug = self._generate_unique_slug(db, slug)
+            
+            # Create category
+            category_dict = category_data.model_dump()
+            category_dict['slug'] = slug
+            
+            category = self.repository.create(db, category_dict)
+            logger.info(f"✅ Category created: {category.name} (ID: {category.id})")
+            
+            return category
+            
+        except (ValidationError, PermissionError):
+            raise
+        except Exception as e:
+            logger.error(f"🚨 Error creating category: {str(e)}")
+            raise ValidationError("Failed to create category")
+    
+    def get_category(self, db: Session, category_id: int) -> Category:
+        """Get category by ID."""
+        category = self.repository.get_by_id(db, category_id)
+        if not category:
+            raise NotFoundError(f"Category with ID {category_id} not found")
+        return category
+    
+    def get_category_by_slug(self, db: Session, slug: str) -> Category:
         """Get category by slug."""
-        try:
-            return db.query(Category).filter(Category.slug == slug).first()
-        except Exception as e:
-            logger.error(f"🚨 Error getting category by slug {slug}: {str(e)}")
-            return None
+        category = self.repository.get_by_slug(db, slug)
+        if not category:
+            raise NotFoundError(f"Category with slug '{slug}' not found")
+        return category
     
-    def get_by_name(self, db: Session, name: str) -> Optional[Category]:
-        """Get category by name."""
-        try:
-            return db.query(Category).filter(
-                func.lower(Category.name) == name.lower()
-            ).first()
-        except Exception as e:
-            logger.error(f"🚨 Error getting category by name {name}: {str(e)}")
-            return None
-    
-    def get_root_categories(
+    def get_categories(
         self, 
         db: Session, 
-        is_active: Optional[bool] = None,
-        skip: int = 0, 
-        limit: int = 50
+        params: CategoryListParams
     ) -> List[Category]:
-        """Get root categories (categories without parent)."""
+        """Get categories with filtering and pagination."""
         try:
-            query = db.query(Category).filter(Category.parent_id.is_(None))
-            
-            if is_active is not None:
-                query = query.filter(Category.is_active == is_active)
-            
-            return query.order_by(Category.name).offset(skip).limit(limit).all()
+            if params.search:
+                return self.repository.search_categories(
+                    db, 
+                    params.search,
+                    params.is_active,
+                    params.skip, 
+                    params.limit
+                )
+            elif params.parent_id is not None:
+                return self.repository.get_children(db, params.parent_id, params.is_active)
+            elif params.parent_id is None and hasattr(params, 'root_only') and params.root_only:
+                return self.repository.get_root_categories(
+                    db, 
+                    params.is_active, 
+                    params.skip, 
+                    params.limit
+                )
+            else:
+                return self.repository.get_multi(
+                    db, 
+                    skip=params.skip, 
+                    limit=params.limit,
+                    filters={'is_active': params.is_active} if params.is_active is not None else None
+                )
         except Exception as e:
-            logger.error(f"🚨 Error getting root categories: {str(e)}")
+            logger.error(f"🚨 Error getting categories: {str(e)}")
             return []
     
-    def get_children(
-        self, 
-        db: Session, 
-        parent_id: int,
-        is_active: Optional[bool] = None
-    ) -> List[Category]:
-        """Get child categories of a parent."""
+    def get_category_tree(self, db: Session, is_active: Optional[bool] = None) -> List[CategoryTree]:
+        """Get hierarchical category tree."""
         try:
-            query = db.query(Category).filter(Category.parent_id == parent_id)
-            
-            if is_active is not None:
-                query = query.filter(Category.is_active == is_active)
-            
-            return query.order_by(Category.name).all()
-        except Exception as e:
-            logger.error(f"🚨 Error getting children for category {parent_id}: {str(e)}")
-            return []
-    
-    def get_category_tree(self, db: Session, is_active: Optional[bool] = None) -> List[Category]:
-        """Get complete category tree with children loaded."""
-        try:
-            # First get all categories
-            query = db.query(Category)
-            if is_active is not None:
-                query = query.filter(Category.is_active == is_active)
-            
-            all_categories = query.order_by(Category.name).all()
-            
-            # Build tree structure
-            category_dict = {cat.id: cat for cat in all_categories}
-            root_categories = []
-            
-            for category in all_categories:
-                if category.parent_id is None:
-                    root_categories.append(category)
-                else:
-                    parent = category_dict.get(category.parent_id)
-                    if parent:
-                        if not hasattr(parent, '_children'):
-                            parent._children = []
-                        parent._children.append(category)
-            
-            return root_categories
+            categories = self.repository.get_category_tree(db, is_active)
+            return self._build_category_tree(categories)
         except Exception as e:
             logger.error(f"🚨 Error getting category tree: {str(e)}")
             return []
     
-    def get_category_path(self, db: Session, category_id: int) -> List[Category]:
-        """Get the path from root to this category."""
+    def get_category_with_children(self, db: Session, category_id: int) -> CategoryWithChildren:
+        """Get category with its children."""
         try:
-            path = []
-            current_id = category_id
+            category = self.get_category(db, category_id)
+            children = self.repository.get_children(db, category_id, is_active=True)
             
-            while current_id:
-                category = self.get_by_id(db, current_id)
-                if not category:
-                    break
-                path.insert(0, category)
-                current_id = category.parent_id
+            # Get article counts
+            category_with_count = self.repository.get_categories_with_article_count(db)
+            count_dict = {item['category'].id: item['article_count'] for item in category_with_count}
             
-            return path
+            category_response = CategoryWithChildren.model_validate(category)
+            category_response.article_count = count_dict.get(category.id, 0)
+            category_response.children = [
+                CategoryResponse.model_validate(child) for child in children
+            ]
+            
+            # Calculate total articles including children
+            total_articles = category_response.article_count
+            for child in children:
+                total_articles += count_dict.get(child.id, 0)
+            category_response.total_articles_including_children = total_articles
+            
+            return category_response
+        except NotFoundError:
+            raise
         except Exception as e:
-            logger.error(f"🚨 Error getting category path for {category_id}: {str(e)}")
-            return []
+            logger.error(f"🚨 Error getting category with children: {str(e)}")
+            raise ValidationError("Failed to get category with children")
     
-    def search_categories(
+    def update_category(
         self, 
         db: Session, 
-        search_term: str,
-        is_active: Optional[bool] = None,
-        skip: int = 0, 
-        limit: int = 50
-    ) -> List[Category]:
-        """Search categories by name and description."""
+        category_id: int, 
+        category_data: CategoryUpdate,
+        current_user: User
+    ) -> Category:
+        """Update category."""
         try:
-            search_filter = or_(
-                Category.name.ilike(f"%{search_term}%"),
-                Category.description.ilike(f"%{search_term}%")
-            )
+            # Check permissions
+            if not current_user.is_admin:
+                raise PermissionError("Admin privileges required to update categories")
             
-            query = db.query(Category).filter(search_filter)
+            category = self.get_category(db, category_id)
             
-            if is_active is not None:
-                query = query.filter(Category.is_active == is_active)
+            update_dict = category_data.model_dump(exclude_unset=True)
             
-            return query.order_by(Category.name).offset(skip).limit(limit).all()
+            # Validate parent category if being changed
+            if 'parent_id' in update_dict and update_dict['parent_id']:
+                if update_dict['parent_id'] == category_id:
+                    raise ValidationError("Category cannot be its own parent")
+                
+                parent = self.repository.get_by_id(db, update_dict['parent_id'])
+                if not parent:
+                    raise ValidationError(f"Parent category with ID {update_dict['parent_id']} not found")
+                
+                # Check for circular reference
+                if self._would_create_cycle(db, category_id, update_dict['parent_id']):
+                    raise ValidationError("Cannot create circular parent-child relationship")
+            
+            # Check name uniqueness if being changed
+            if 'name' in update_dict:
+                existing = self.repository.get_by_name(db, update_dict['name'])
+                if existing and existing.id != category_id:
+                    raise ValidationError(f"Category with name '{update_dict['name']}' already exists")
+                
+                # Update slug if name changed
+                update_dict['slug'] = self._generate_slug(update_dict['name'])
+                existing_slug = self.repository.get_by_slug(db, update_dict['slug'])
+                if existing_slug and existing_slug.id != category_id:
+                    update_dict['slug'] = self._generate_unique_slug(db, update_dict['slug'])
+            
+            update_dict['updated_at'] = datetime.now(timezone.utc)
+            
+            updated_category = self.repository.update(db, category, update_dict)
+            logger.info(f"✅ Category updated: {updated_category.name} (ID: {category_id})")
+            
+            return updated_category
+            
+        except (NotFoundError, ValidationError, PermissionError):
+            raise
         except Exception as e:
-            logger.error(f"🚨 Error searching categories with term '{search_term}': {str(e)}")
-            return []
+            logger.error(f"🚨 Error updating category {category_id}: {str(e)}")
+            raise ValidationError("Failed to update category")
     
-    def get_categories_with_article_count(
-        self, 
-        db: Session,
-        is_active: Optional[bool] = None,
-        skip: int = 0, 
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
-        """Get categories with their article counts."""
+    def delete_category(self, db: Session, category_id: int, current_user: User) -> bool:
+        """Delete category."""
         try:
-            query = db.query(
-                Category,
-                func.count(Article.id).label('article_count')
-            ).outerjoin(Article, and_(
-                Article.category_id == Category.id,
-                Article.status == 'published'
-            )).group_by(Category.id)
+            # Check permissions
+            if not current_user.is_admin:
+                raise PermissionError("Admin privileges required to delete categories")
             
-            if is_active is not None:
-                query = query.filter(Category.is_active == is_active)
+            category = self.get_category(db, category_id)
             
-            results = query.order_by(Category.name).offset(skip).limit(limit).all()
+            # Check if category has children
+            children = self.repository.get_children(db, category_id)
+            if children:
+                raise ValidationError("Cannot delete category with child categories")
             
-            return [
-                {
-                    'category': result[0],
-                    'article_count': result[1]
-                }
-                for result in results
-            ]
+            # Check if category has articles (optional - you might want to reassign instead)
+            category_with_count = self.repository.get_categories_with_article_count(db)
+            count_dict = {item['category'].id: item['article_count'] for item in category_with_count}
+            
+            if count_dict.get(category_id, 0) > 0:
+                raise ValidationError("Cannot delete category with articles")
+            
+            success = self.repository.delete(db, category_id)
+            if success:
+                logger.info(f"✅ Category deleted: {category.name} (ID: {category_id})")
+            
+            return success
+            
+        except (NotFoundError, ValidationError, PermissionError):
+            raise
         except Exception as e:
-            logger.error(f"🚨 Error getting categories with article count: {str(e)}")
-            return []
-    
-    def get_most_used_categories(self, db: Session, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get most used categories by article count."""
-        try:
-            results = db.query(
-                Category,
-                func.count(Article.id).label('article_count')
-            ).join(Article, and_(
-                Article.category_id == Category.id,
-                Article.status == 'published'
-            )).group_by(Category.id).having(
-                func.count(Article.id) > 0
-            ).order_by(desc('article_count')).limit(limit).all()
-            
-            return [
-                {
-                    'category': result[0],
-                    'article_count': result[1]
-                }
-                for result in results
-            ]
-        except Exception as e:
-            logger.error(f"🚨 Error getting most used categories: {str(e)}")
-            return []
-    
-    def get_statistics(self, db: Session) -> Dict[str, Any]:
-        """Get category statistics."""
-        try:
-            total_categories = db.query(func.count(Category.id)).scalar() or 0
-            active_categories = db.query(func.count(Category.id)).filter(
-                Category.is_active == True
-            ).scalar() or 0
-            root_categories = db.query(func.count(Category.id)).filter(
-                Category.parent_id.is_(None)
-            ).scalar() or 0
-            
-            # Get most used category
-            most_used = self.get_most_used_categories(db, limit=1)
-            most_used_category = most_used[0]['category'] if most_used else None
-            
-            # Categories with articles
-            categories_with_articles = db.query(func.count(func.distinct(Category.id))).join(
-                Article, Article.category_id == Category.id
-            ).filter(Article.status == 'published').scalar() or 0
-            
-            return {
-                'total_categories': total_categories,
-                'active_categories': active_categories,
-                'root_categories': root_categories,
-                'most_used_category': most_used_category,
-                'categories_with_articles': categories_with_articles,
-                'max_depth': self._calculate_max_depth(db)
-            }
-        except Exception as e:
-            logger.error(f"🚨 Error getting category statistics: {str(e)}")
-            return {}
-    
-    def _calculate_max_depth(self, db: Session) -> int:
-        """Calculate maximum category tree depth."""
-        try:
-            max_depth = 0
-            root_categories = self.get_root_categories(db)
-            
-            for root in root_categories:
-                depth = self._get_category_depth(db, root.id, 0)
-                max_depth = max(max_depth, depth)
-            
-            return max_depth
-        except Exception as e:
-            logger.error(f"🚨 Error calculating max depth: {str(e)}")
-            return 0
-    
-    def _get_category_depth(self, db: Session, category_id: int, current_depth: int) -> int:
-        """Recursively calculate category depth."""
-        children = self.get_children(db, category_id)
-        if not children:
-            return current_depth
-        
-        max_child_depth = current_depth
-        for child in children:
-            child_depth = self._get_category_depth(db, child.id, current_depth + 1)
-            max_child_depth = max(max_child_depth, child_depth)
-        
-        return max_child_depth
-    
-    def bulk_update_status(self, db: Session, category_ids: List[int], is_active: bool) -> int:
-        """Bulk update category active status."""
-        try:
-            updated_count = db.query(Category).filter(
-                Category.id.in_(category_ids)
-            ).update(
-                {'is_active': is_active, 'updated_at': datetime.now(timezone.utc)},
-                synchronize_session=False
-            )
-            db.commit()
-            
-            logger.info(f"✅ Bulk updated {updated_count} categories status to {is_active}")
-            return updated_count
-        except Exception as e:
-            logger.error(f"🚨 Error bulk updating categories: {str(e)}")
-            db.rollback()
-            return 0
-    
-    def move_category(self, db: Session, category_id: int, new_parent_id: Optional[int]) -> bool:
-        """Move category to a new parent."""
-        try:
-            # Validate that we're not creating a circular reference
-            if new_parent_id and self._would_create_cycle(db, category_id, new_parent_id):
-                logger.warning(f"🚫 Cannot move category {category_id} to {new_parent_id}: would create cycle")
-                return False
-            
-            category = self.get_by_id(db, category_id)
-            if not category:
-                return False
-            
-            category.parent_id = new_parent_id
-            category.updated_at = datetime.now(timezone.utc)
-            db.commit()
-            
-            logger.info(f"✅ Moved category {category_id} to parent {new_parent_id}")
-            return True
-        except Exception as e:
-            logger.error(f"🚨 Error moving category {category_id}: {str(e)}")
-            db.rollback()
+            logger.error(f"🚨 Error deleting category {category_id}: {str(e)}")
             return False
     
-    def _would_create_cycle(self, db: Session, category_id: int, new_parent_id: int) -> bool:
-        """Check if moving category would create a circular reference."""
-        current_id = new_parent_id
-        visited = set()
-        
-        while current_id and current_id not in visited:
-            if current_id == category_id:
-                return True
+    def move_category(
+        self, 
+        db: Session, 
+        category_id: int, 
+        move_data: CategoryMoveRequest,
+        current_user: User
+    ) -> Category:
+        """Move category to new parent."""
+        try:
+            # Check permissions
+            if not current_user.is_admin:
+                raise PermissionError("Admin privileges required to move categories")
             
-            visited.add(current_id)
-            category = self.get_by_id(db, current_id)
-            current_id = category.parent_id if category else None
+            category = self.get_category(db, category_id)
+            
+            # Validate new parent if provided
+            if move_data.new_parent_id:
+                if move_data.new_parent_id == category_id:
+                    raise ValidationError("Category cannot be its own parent")
+                
+                parent = self.repository.get_by_id(db, move_data.new_parent_id)
+                if not parent:
+                    raise ValidationError(f"Parent category with ID {move_data.new_parent_id} not found")
+            
+            success = self.repository.move_category(db, category_id, move_data.new_parent_id)
+            if not success:
+                raise ValidationError("Failed to move category")
+            
+            updated_category = self.get_category(db, category_id)
+            logger.info(f"✅ Category moved: {category.name} to parent {move_data.new_parent_id}")
+            
+            return updated_category
+            
+        except (NotFoundError, ValidationError, PermissionError):
+            raise
+        except Exception as e:
+            logger.error(f"🚨 Error moving category {category_id}: {str(e)}")
+            raise ValidationError("Failed to move category")
+    
+    def bulk_update_categories(
+        self, 
+        db: Session, 
+        bulk_data: CategoryBulkUpdate,
+        current_user: User
+    ) -> int:
+        """Bulk update categories."""
+        try:
+            # Check permissions
+            if not current_user.is_admin:
+                raise PermissionError("Admin privileges required for bulk operations")
+            
+            updated_count = 0
+            
+            if bulk_data.is_active is not None:
+                updated_count = self.repository.bulk_update_status(
+                    db, 
+                    bulk_data.category_ids, 
+                    bulk_data.is_active
+                )
+            
+            logger.info(f"✅ Bulk updated {updated_count} categories")
+            return updated_count
+            
+        except PermissionError:
+            raise
+        except Exception as e:
+            logger.error(f"🚨 Error in bulk update: {str(e)}")
+            return 0
+    
+    def get_category_statistics(self, db: Session) -> CategoryStats:
+        """Get category statistics."""
+        try:
+            stats_data = self.repository.get_statistics(db)
+            return CategoryStats(**stats_data)
+        except Exception as e:
+            logger.error(f"🚨 Error getting category statistics: {str(e)}")
+            return CategoryStats()
+    
+    def _generate_slug(self, name: str) -> str:
+        """Generate URL-friendly slug from category name."""
+        # Convert to lowercase and replace spaces/special chars with hyphens
+        slug = re.sub(r'[^\w\s-]', '', name.lower())
+        slug = re.sub(r'[-\s]+', '-', slug)
+        return slug.strip('-')
+    
+    def _generate_unique_slug(self, db: Session, base_slug: str) -> str:
+        """Generate unique slug by appending number if needed."""
+        counter = 1
+        unique_slug = f"{base_slug}-{counter}"
         
-        return False
+        while self.repository.get_by_slug(db, unique_slug):
+            counter += 1
+            unique_slug = f"{base_slug}-{counter}"
+        
+        return unique_slug
+    
+    def _would_create_cycle(self, db: Session, category_id: int, new_parent_id: int) -> bool:
+        """Check if moving category would create circular reference."""
+        return self.repository._would_create_cycle(db, category_id, new_parent_id)
+    
+    def _build_category_tree(self, categories: List[Category], level: int = 0) -> List[CategoryTree]:
+        """Build hierarchical category tree structure."""
+        tree = []
+        
+        for category in categories:
+            category_tree = CategoryTree.model_validate(category)
+            category_tree.level = level
+            
+            # Build path
+            path_parts = [category.name]
+            if hasattr(category, '_parent_path'):
+                path_parts = category._parent_path + path_parts
+            category_tree.path = " > ".join(path_parts)
+            
+            # Add children if they exist
+            if hasattr(category, '_children'):
+                for child in category._children:
+                    child._parent_path = [category.name]
+                category_tree.children = self._build_category_tree(
+                    category._children, level + 1
+                )
+            
+            tree.append(category_tree)
+        
+        return tree
 
 
-# Create instance
-category_repository = CategoryRepository()
+# Create service instance
+category_service = CategoryService()

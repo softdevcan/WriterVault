@@ -1,16 +1,57 @@
 """
 Article Pydantic schemas for request/response validation.
-Modern Pydantic v2 implementation with comprehensive validation.
+Central schema facade - imports and re-exports all schemas for API compatibility.
 """
+from __future__ import annotations
 from datetime import datetime
 from typing import Optional, List
 from enum import Enum
 
-from pydantic import BaseModel, Field, ConfigDict, validator, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pydantic.types import PositiveInt
 
 from app.models.article import ArticleStatus
-from app.models.collection import CollectionType, CollectionStatus
+
+# ============================================================================
+# IMPORT ALL SCHEMAS FROM OTHER MODULES
+# ============================================================================
+
+# User schemas
+from app.schemas.user import (
+    UserResponse, UserProfile, UserCreate, UserUpdate, 
+    UserListResponse, UserStats, AuthorProfile, UserPasswordUpdate
+)
+
+# Category and Tag schemas  
+from app.schemas.category import (
+    CategoryResponse, CategoryCreate, CategoryUpdate, CategoryWithChildren,
+    CategoryWithParent, CategoryTree, CategoryStats, CategoryListParams,
+    TagResponse, TagCreate, TagUpdate, TagStats, TagListParams
+)
+
+# Collection schemas - only basic ones (no circular dependency)
+from app.schemas.collection import (
+    CollectionResponse, CollectionSummary, CollectionCreate, CollectionUpdate, 
+    CollectionWithAuthor, CollectionStats, CollectionListParams
+)
+
+# ============================================================================
+# ARTICLE-SPECIFIC SCHEMAS
+# ============================================================================
+
+class ArticleFilter(BaseModel):
+    """Schema for filtering articles."""
+    status: Optional[ArticleStatus] = None
+    category_id: Optional[PositiveInt] = None
+    collection_id: Optional[PositiveInt] = None
+    author_id: Optional[PositiveInt] = None
+    is_featured: Optional[bool] = None
+    search: Optional[str] = Field(None, min_length=2, max_length=100)
+    tag: Optional[str] = Field(None, min_length=1, max_length=50)
+    sort_by: str = Field("created_at", pattern="^(created_at|published_at|updated_at|title|view_count)$")
+    sort_order: str = Field("desc", pattern="^(asc|desc)$")
+    skip: int = Field(0, ge=0)
+    limit: int = Field(20, ge=1, le=100)
 
 
 class ArticleBase(BaseModel):
@@ -37,16 +78,7 @@ class ArticleCreate(ArticleBase):
     @classmethod
     def validate_tag_names(cls, v):
         if v is not None:
-            # Remove duplicates and empty strings
             return list(set(filter(None, [tag.strip().lower() for tag in v])))
-        return v
-    
-    @field_validator('scheduled_at')
-    @classmethod
-    def validate_scheduled_at(cls, v, values):
-        if v is not None and 'status' in values.data:
-            if values.data['status'] != ArticleStatus.SCHEDULED:
-                raise ValueError('scheduled_at can only be set when status is SCHEDULED')
         return v
 
 
@@ -78,10 +110,120 @@ class ArticleStatusUpdate(BaseModel):
     """Schema for updating article status only."""
     status: ArticleStatus = Field(..., description="New article status")
     scheduled_at: Optional[datetime] = Field(None, description="Scheduled publication time")
+
+
+class ArticleResponse(BaseModel):
+    """Complete article response schema."""
+    model_config = ConfigDict(from_attributes=True)
     
-    @field_validator('scheduled_at')
-    @classmethod
-    def validate_scheduled_at(cls, v, values):
-        if v is not None and values.data.get('status') != ArticleStatus.SCHEDULED:
-            raise ValueError('scheduled_at can only be set when status is SCHEDULED')
-        return v
+    id: int
+    title: str
+    slug: str
+    summary: Optional[str] = None
+    content: str
+    meta_description: Optional[str] = None
+    reading_time: Optional[int] = None
+    status: ArticleStatus
+    is_featured: bool
+    allow_comments: bool
+    order_in_collection: Optional[int] = None
+    
+    # Statistics
+    view_count: int
+    like_count: int
+    comment_count: int
+    
+    # Timestamps
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    published_at: Optional[datetime] = None
+    
+    # Related objects
+    author: UserResponse
+    category: Optional[CategoryResponse] = None
+    collection: Optional[CollectionSummary] = None
+    tags: List[TagResponse] = []
+
+
+class ArticleListResponse(BaseModel):
+    """Article list item response (without full content)."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    title: str
+    slug: str
+    summary: Optional[str] = None
+    status: ArticleStatus
+    is_featured: bool
+    reading_time: Optional[int] = None
+    order_in_collection: Optional[int] = None
+    
+    # Statistics
+    view_count: int
+    like_count: int
+    comment_count: int
+    
+    # Timestamps
+    created_at: datetime
+    published_at: Optional[datetime] = None
+    
+    # Related objects
+    author: UserResponse
+    category: Optional[CategoryResponse] = None
+    collection: Optional[CollectionSummary] = None
+    tags: List[TagResponse] = []
+
+
+class ArticleStatsResponse(BaseModel):
+    """Article statistics response."""
+    total_articles: int
+    published_articles: int
+    draft_articles: int
+    total_views: int
+    total_likes: int
+    total_comments: int
+    featured_articles: int
+
+
+class PaginatedArticleResponse(BaseModel):
+    """Paginated article response."""
+    articles: List[ArticleListResponse]
+    total: int
+    page: int
+    size: int
+    total_pages: int
+
+
+# ============================================================================
+# LEGACY ALIASES FOR API COMPATIBILITY
+# ============================================================================
+
+# Backward compatibility aliases
+PaginatedResponse = PaginatedArticleResponse
+ArticleStats = ArticleStatsResponse
+
+# ============================================================================
+# ALL EXPORTS FOR API FILES
+# ============================================================================
+
+__all__ = [
+    # Article schemas
+    'ArticleCreate', 'ArticleUpdate', 'ArticleResponse', 'ArticleListResponse',
+    'ArticleStatusUpdate', 'ArticleFilter', 'ArticleStatsResponse', 'ArticleStats',
+    'PaginatedArticleResponse', 'PaginatedResponse',
+    
+    # User schemas
+    'UserResponse', 'UserProfile', 'UserCreate', 'UserUpdate', 
+    'UserListResponse', 'UserStats', 'AuthorProfile', 'UserPasswordUpdate',
+    
+    # Category schemas
+    'CategoryResponse', 'CategoryCreate', 'CategoryUpdate', 'CategoryWithChildren',
+    'CategoryWithParent', 'CategoryTree', 'CategoryStats', 'CategoryListParams',
+    
+    # Tag schemas
+    'TagResponse', 'TagCreate', 'TagUpdate', 'TagStats', 'TagListParams',
+    
+    # Collection schemas - basic only (no circular dependency)
+    'CollectionResponse', 'CollectionSummary', 'CollectionCreate', 'CollectionUpdate', 
+    'CollectionWithAuthor', 'CollectionStats', 'CollectionListParams'
+]
