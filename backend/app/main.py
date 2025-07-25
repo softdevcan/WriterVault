@@ -16,11 +16,15 @@ from slowapi.errors import RateLimitExceeded
 import os
 from dotenv import load_dotenv
 
+
 # Load environment variables from .env file
 load_dotenv()
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.admin import router as admin_router
+from app.api.v1.articles import router as articles_router
+from app.api.v1.collections import router as collections_router
+from app.api.v1.categories import router as categories_router
 from app.core.security import generate_secure_token
 
 # Configure logging
@@ -139,6 +143,29 @@ app.include_router(
     admin_router,
     prefix="/api/v1/admin",
     tags=["administration"]
+)
+
+# Add this after the existing router includes (around line 95)
+app.include_router(
+    articles_router,
+    prefix="/api/v1/articles",
+    tags=["articles"]
+)
+
+# Collections router
+app.include_router(
+    collections_router,
+    prefix="/api/v1/collections",
+    tags=["collections"],
+    dependencies=[Depends(limiter)]
+)
+
+# Categories router  
+app.include_router(
+    categories_router,
+    prefix="/api/v1/categories", 
+    tags=["categories"],
+    dependencies=[Depends(limiter)]
 )
 
 # Root endpoints

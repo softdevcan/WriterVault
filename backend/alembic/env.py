@@ -14,6 +14,9 @@ from app.config.database import Base
 
 # Import all models so they are registered with Base.metadata
 from app.models.user import User  # Register User model
+from app.models.article import Article  # Register Article model
+from app.models.collection import Collection  # Register Collection model  
+from app.models.category import Category  # Register Category model
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

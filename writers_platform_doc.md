@@ -7,7 +7,7 @@ Yazarlar için modern, sürdürülebilir ve geliştirilebilir bir içerik payla�
 
 ### 1.2 Teknoloji Stack
 - **Frontend:** Next.js 14 (App Router) + JavaScript
-- **Backend:** FastAPI + Python 3.1+
+- **Backend:** FastAPI + Python 3.13+
 - **Database:** PostgreSQL 15+
 - **ORM:** SQLAlchemy 2.0
 - **Authentication:** JWT + FastAPI Security
@@ -18,119 +18,151 @@ Yazarlar için modern, sürdürülebilir ve geliştirilebilir bir içerik payla�
 
 ### 1.3 Proje Yapısı (Monorepo)
 ```
-literati-platform/
-├── backend/                    # FastAPI Backend
+WriterVault/
+├── backend/                        # FastAPI Backend
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py            # FastAPI application
+│   │   ├── main.py                # FastAPI application with all routers
 │   │   ├── config/
 │   │   │   ├── __init__.py
-│   │   │   ├── settings.py    # Environment variables
-│   │   │   └── database.py    # Database configuration
-│   │   ├── models/            # SQLAlchemy models
+│   │   │   ├── settings.py        # Environment variables (os.getenv approach)
+│   │   │   └── database.py        # PostgreSQL configuration
+│   │   ├── models/                # SQLAlchemy 2.0+ models
+│   │   │   ├── __init__.py        # All models imported
+│   │   │   ├── user.py           # User model (existing)
+│   │   │   ├── article.py        # ✅ Article model (NEW)
+│   │   │   ├── collection.py     # ✅ Collection model (NEW - Series/Books)
+│   │   │   └── category.py       # ✅ Category model (NEW - Hierarchical)
+│   │   ├── schemas/               # Pydantic validation schemas
 │   │   │   ├── __init__.py
-│   │   │   ├── user.py
-│   │   │   ├── article.py
-│   │   │   ├── comment.py
-│   │   │   └── category.py
-│   │   ├── schemas/           # Pydantic schemas
+│   │   │   ├── user.py           # User schemas (existing)
+│   │   │   ├── auth.py           # Auth schemas (existing)
+│   │   │   ├── article.py        # ✅ Article schemas (NEW)
+│   │   │   ├── collection.py     # ✅ Collection schemas (NEW)
+│   │   │   └── category.py       # ✅ Category schemas (NEW)
+│   │   ├── repositories/          # Data access layer (Repository pattern)
 │   │   │   ├── __init__.py
-│   │   │   ├── user.py
-│   │   │   ├── article.py
-│   │   │   ├── comment.py
-│   │   │   └── auth.py
-│   │   ├── repositories/      # Data access layer
+│   │   │   ├── base_repository.py # ✅ Base repository class (NEW)
+│   │   │   ├── user_repository.py # User data access (existing)
+│   │   │   ├── article_repository.py # ✅ Article data access (NEW)
+│   │   │   ├── collection_repository.py # ✅ Collection data access (NEW)
+│   │   │   └── category_repository.py # ✅ Category data access (NEW)
+│   │   ├── services/              # Business logic layer
 │   │   │   ├── __init__.py
-│   │   │   ├── base.py
-│   │   │   ├── user.py
-│   │   │   ├── article.py
-│   │   │   └── comment.py
-│   │   ├── services/          # Business logic
+│   │   │   ├── auth.py           # Auth business logic (existing)
+│   │   │   ├── user.py           # User business logic (existing)
+│   │   │   ├── email.py          # Email service (existing)
+│   │   │   ├── article_service.py # ✅ Article business logic (NEW)
+│   │   │   ├── collection_service.py # ✅ Collection business logic (NEW)
+│   │   │   └── category_service.py # ✅ Category business logic (NEW)
+│   │   ├── api/                   # API endpoints
 │   │   │   ├── __init__.py
-│   │   │   ├── auth.py
-│   │   │   ├── user.py
-│   │   │   ├── article.py
-│   │   │   └── email.py
-│   │   ├── api/              # API endpoints
-│   │   │   ├── __init__.py
-│   │   │   ├── deps.py       # Dependencies
+│   │   │   ├── deps.py           # ✅ Enhanced dependencies (UPDATED)
 │   │   │   └── v1/
 │   │   │       ├── __init__.py
-│   │   │       ├── auth.py
-│   │   │       ├── users.py
-│   │   │       ├── articles.py
-│   │   │       └── comments.py
-│   │   ├── core/             # Core utilities
+│   │   │       ├── auth.py       # Authentication endpoints (existing)
+│   │   │       ├── users.py      # User management endpoints (existing)
+│   │   │       ├── admin.py      # Admin endpoints (existing)
+│   │   │       ├── articles.py   # ✅ Article CRUD endpoints (NEW)
+│   │   │       ├── collections.py # ✅ Collection endpoints (NEW)
+│   │   │       └── categories.py # ✅ Category endpoints (NEW)
+│   │   ├── core/                  # Core utilities
 │   │   │   ├── __init__.py
-│   │   │   ├── security.py   # JWT, password hashing
-│   │   │   ├── exceptions.py # Custom exceptions
-│   │   │   └── utils.py
-│   │   └── tests/
+│   │   │   ├── security.py                   # JWT, password hashing (existing)
+│   │   │   ├── exceptions.py                 # ✅ Custom exceptions (UPDATED)
+│   │   │   └── utils.py                      # General utilities (existing)
+│   │   └── tests/                            # Test suite
 │   │       ├── __init__.py
 │   │       ├── conftest.py
 │   │       ├── test_auth.py
-│   │       └── test_articles.py
-│   ├── alembic/              # Database migrations
-│   │   ├── versions/
-│   │   ├── env.py
+│   │       ├── test_users.py
+│   │       ├── test_articles.py              # ✅ Article tests (TODO)
+│   │       ├── test_collections.py           # ✅ Collection tests (TODO)
+│   │       └── test_categories.py            # ✅ Category tests (TODO)
+│   ├── alembic/                              # Database migrations
+│   │   ├── versions/                         # Migration files
+│   │   │   └── [timestamp]_initial_migration_with_all_tables.py # ✅ Complete migration
+│   │   ├── env.py                            # ✅ All models imported (UPDATED)
 │   │   └── alembic.ini
-│   ├── requirements.txt
+│   ├── .env                                  # ✅ Environment variables (UPDATED)
+│   ├── requirements.txt                      # ✅ python-dotenv added
 │   ├── requirements-dev.txt
 │   └── Dockerfile
-├── frontend/                  # Next.js Frontend
+├── frontend/                                 # Next.js Frontend (Ready for development)
 │   ├── src/
-│   │   ├── app/              # App Router pages
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx
-│   │   │   ├── login/
-│   │   │   ├── register/
+│   │   ├── app/                              # App Router pages
+│   │   │   ├── layout.js                     # Main layout (existing)
+│   │   │   ├── page.js                       # Homepage (existing)
+|   |   |   ├── auth/
+|   |   |   |   |── login/page.jsx            # Login page (existing)
+|   │   │   │   ├── register/page.jsx         # Register page (existing)  
+|   |   |   |   |── reset-password/page.jsx   # Login page (existing)
+|   │   │   │   ├── forgot-password/page.jsx  # Register page (existing)  
+│   │   │   ├── profile/                      # Profile page (existing)
+│   │   │   ├── dashboard/                    # User dashboard (existing)
+│   │   ├── components/                       # React components
+│   │   │   ├── ui/                           # shadcn/ui components (existing)
 │   │   │   ├── profile/
-│   │   │   ├── articles/
-│   │   │   └── admin/
-│   │   ├── components/       # React components
-│   │   │   ├── ui/          # shadcn/ui components
-│   │   │   ├── layout/
-│   │   │   │   ├── Header.tsx
-│   │   │   │   ├── Footer.tsx
-│   │   │   │   └── Sidebar.tsx
-│   │   │   ├── auth/
-│   │   │   │   ├── LoginForm.tsx
-│   │   │   │   └── RegisterForm.tsx
-│   │   │   ├── articles/
-│   │   │   │   ├── ArticleCard.tsx
-│   │   │   │   ├── ArticleEditor.tsx
-│   │   │   │   └── ArticleList.tsx
-│   │   │   └── common/
-│   │   │       ├── LoadingSpinner.tsx
-│   │   │       └── ErrorBoundary.tsx
-│   │   ├── lib/              # Utilities
-│   │   │   ├── api.ts        # API client
-│   │   │   ├── auth.ts       # Auth utilities
-│   │   │   ├── utils.ts      # General utilities
-│   │   │   └── validations.ts # Zod schemas
-│   │   ├── hooks/            # Custom React hooks
-│   │   │   ├── useAuth.ts
-│   │   │   ├── useArticles.ts
-│   │   │   └── useUsers.ts
-│   │   ├── store/            # Zustand stores
-│   │   │   ├── auth.ts
-│   │   │   └── ui.ts
-│   │   └── types/            # TypeScript types
-│   │       ├── api.ts
-│   │       ├── auth.ts
-│   │       └── article.ts
+|   |   |   |   |── ProfileAccount.jsx            
+|   │   │   │   ├── ProfileGeneral.jsx         
+|   |   |   |   |── ProfileSecurity.jsx   
+|   │   │   │   ├── ProfileSettings.jsx  
+│   │   ├── lib/                              # Utilities
+│   │   │   ├── api.js                        # ✅ API client (NEEDS UPDATE for articles)
+│   │   │   ├── utils.js                      # General utilities (existing)
+│   │   ├── store/                            # Zustand stores
+│   │   │   ├── auth.js                       # Auth store (existing)
 │   ├── public/
-│   ├── next.config.js
-│   ├── tailwind.config.js
-│   ├── package.json
-│   └── tsconfig.json
-├── docker-compose.yml
-├── .gitignore
-├── README.md
-└── docs/
-    ├── api.md
-    ├── deployment.md
-    └── development.md
+│   │   ├── icons/                            # Icon assets
+│   │   └── images/                           # Image assets
+│   ├── next.config.js                        # Next.js configuration
+│   ├── tailwind.config.js                    # Tailwind CSS configuration
+│   ├── package.json                          # Frontend dependencies
+│   └── tsconfig.json                         # TypeScript configuration
+├── .gitignore                                # Git ignore patterns
+├── README.md                                 # Project documentation
+└── docs/                                     # Documentation
+    ├── api.md                                # ✅ API documentation (NEEDS UPDATE)
+    ├── deployment.md                         # Deployment guide
+    └── development.md                        # Development guide
+
+# =============================================================================
+# PROJECT STATUS & DEVELOPMENT ROADMAP
+# =============================================================================
+
+✅ COMPLETED (Backend):
+├── User Authentication System (Login/Register/Profile)
+├── Article Management System (CRUD + Business Logic)
+├── Collection System (Series/Books with Articles)
+├── Category System (Hierarchical Categories)
+├── Repository Pattern Implementation
+├── Service Layer Architecture
+├── RESTful API Endpoints
+├── Database Models & Migrations
+├── Environment Configuration
+├── Rate Limiting & Security
+└── Error Handling & Logging
+
+✅ COMPLETED (Frontend):
+├── Authentication UI (Login/Register/Profile)
+├── User Dashboard
+├── Modern UI with shadcn/ui
+├── Responsive Design
+├── API Integration (Auth)
+└── State Management (Zustand)
+
+🎯 NEXT TO DEVELOP (Priority Order):
+1. Article Creation Page (Rich Text Editor)
+2. My Articles Dashboard (Article Management)
+3. Article Detail View (Public Reading)
+4. Article Editing Interface
+5. Category Selection Components
+6. Collection Management
+7. Public Article Browsing
+8. Search & Filtering
+
+
+🚀 READY FOR: Article Creation Frontend Development
 ```
 
 ## 2. Backend Detayları (FastAPI)
